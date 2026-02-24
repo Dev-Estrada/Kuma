@@ -37,4 +37,25 @@ export class MovementService {
     };
     await this.repo.create(movement);
   }
+
+  /** Entrada de mercancía: aumenta stock y registra movimiento tipo entrada */
+  async recordEntry(productId: number, quantity: number, reference?: string, reason?: string): Promise<number> {
+    if (quantity <= 0) throw new Error('La cantidad debe ser mayor a cero');
+    const product = await this.productRepo.getById(productId);
+    if (!product) throw new Error('Producto no encontrado');
+    const previousQuantity = product.quantity ?? 0;
+    const newQuantity = previousQuantity + quantity;
+    await this.productRepo.updateQuantity(productId, newQuantity);
+    const movement: Movement = {
+      productId,
+      movementType: 'entrada',
+      quantity,
+      previousQuantity,
+      newQuantity,
+      referenceNumber: reference || undefined,
+      reason: reason || 'Entrada de mercancía',
+      notes: reason || 'Entrada de mercancía',
+    };
+    return this.repo.create(movement);
+  }
 }

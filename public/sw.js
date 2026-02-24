@@ -20,7 +20,9 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Nunca interceptar peticiones a la API (login, datos, etc.)
   if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
   event.respondWith(

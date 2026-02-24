@@ -1,13 +1,28 @@
 import sqlite3 from 'sqlite3';
+import fs from 'fs';
+import path from 'path';
 import { open, Database } from 'sqlite';
 import { getVenezuelaNow } from '../utils/venezuelaTime';
+import { hashPassword } from '../utils/auth';
+
+const DB_FILENAME = './inventory.db';
+const DB_RESTORE = './inventory.db.restore';
 
 let db: Database<sqlite3.Database, sqlite3.Statement> | null = null;
 
 export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statement>> {
   if (!db) {
+    const cwd = process.cwd();
+    const restorePath = path.resolve(cwd, DB_RESTORE.replace(/^\.\//, ''));
+    const dbPath = path.resolve(cwd, DB_FILENAME.replace(/^\.\//, ''));
+    if (fs.existsSync(restorePath)) {
+      try {
+        if (fs.existsSync(dbPath)) fs.renameSync(dbPath, dbPath + '.bak');
+        fs.renameSync(restorePath, dbPath);
+      } catch (_) {}
+    }
     db = await open({
-      filename: './inventory.db',
+      filename: dbPath,
       driver: sqlite3.Database,
     });
 
@@ -79,6 +94,18 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
       CREATE INDEX IF NOT EXISTS idx_movements_created ON movements(createdAt);
       CREATE INDEX IF NOT EXISTS idx_movements_reference ON movements(referenceNumber);
 
+      CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL UNIQUE,
+          passwordHash TEXT NOT NULL,
+          displayName TEXT,
+          role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin','user')),
+          isActive BOOLEAN DEFAULT 1,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
       CREATE TABLE IF NOT EXISTS settings (
           key TEXT PRIMARY KEY,
           value TEXT NOT NULL,
@@ -94,6 +121,18 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
       );
       CREATE INDEX IF NOT EXISTS idx_exchange_rate_history_created ON exchange_rate_history(createdAt);
 
+      CREATE TABLE IF NOT EXISTS clients (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          document TEXT,
+          phone TEXT,
+          email TEXT,
+          address TEXT,
+          notes TEXT,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name);
+
       CREATE TABLE IF NOT EXISTS sales (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           totalUsd REAL NOT NULL,
@@ -101,9 +140,16 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
           exchangeRate REAL NOT NULL,
           discountPercent REAL DEFAULT 0,
           notes TEXT,
-          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+          status TEXT DEFAULT 'completada' CHECK(status IN ('completada','anulada')),
+          voidedAt TEXT,
+          voidReason TEXT,
+          clientId INTEGER,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (clientId) REFERENCES clients(id)
       );
       CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(createdAt);
+      CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status);
+      CREATE INDEX IF NOT EXISTS idx_sales_client ON sales(clientId);
 
       CREATE TABLE IF NOT EXISTS sale_items (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,8 +235,51 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
 
     try { await db.run('ALTER TABLE products ADD COLUMN isFavorite BOOLEAN DEFAULT 0'); } catch (_) {}
     try { await db.run('ALTER TABLE products ADD COLUMN expiryDate TEXT'); } catch (_) {}
-  }
+    try { await db.run(`CREATE TABLE IF NOT EXISTS clients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      document TEXT,
+      phone TEXT,
+      email TEXT,
+      address TEXT,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`); } catch (_) {}
+    try { await db.run('ALTER TABLE clients ADD COLUMN address TEXT'); } catch (_) {}
 
+    // Migraciones para sales: añadir columnas si no existen (ignorar solo "duplicate column name")
+    const database = db;
+    const addColumnIfMissing = async (sql: string): Promise<void> => {
+      try {
+        await database.run(sql);
+      } catch (err: unknown) {
+        const msg = (err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : String(err)).toLowerCase();
+        if (!msg.includes('duplicate column name')) throw err;
+      }
+    };
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN status TEXT DEFAULT \'completada\'');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN voidedAt TEXT');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN voidReason TEXT');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN clientId INTEGER');
+    await db.run('UPDATE sales SET status = \'completada\' WHERE status IS NULL').catch(() => {});
+
+    try { await db.run('CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status)'); } catch (_) {}
+    try { await db.run('CREATE INDEX IF NOT EXISTS idx_sales_client ON sales(clientId)'); } catch (_) {}
+
+    // Usuario administrador por defecto si no existe ninguno (contraseña: Admin123!)
+    const userCount = await db.get<{ c: number }>('SELECT COUNT(*) as c FROM users');
+    if (userCount && userCount.c === 0) {
+      const adminHash = hashPassword('Admin123!');
+      await db.run(
+        'INSERT INTO users (username, passwordHash, displayName, role) VALUES (?, ?, ?, ?)',
+        'admin',
+        adminHash,
+        'Administrador',
+        'admin'
+      );
+    }
+  }
+  if (!db) throw new Error('Database not initialized');
   return db;
 }
 

@@ -56,13 +56,21 @@ async function loadTopProducts() {
         }
         msg.textContent = '';
         tbody.innerHTML = data
-            .map((row, i) => `<tr>
+            .map((row, i) => {
+                const costUsd = row.totalCostUsd ?? 0;
+                const profitUsd = row.profitUsd ?? (Number(row.totalUsd) - costUsd);
+                const marginPct = row.marginPercent ?? (row.totalUsd > 0 ? (profitUsd / Number(row.totalUsd)) * 100 : 0);
+                return `<tr>
             <td>${i + 1}</td>
-            <td>${row.productName || '—'}</td>
-            <td>${row.productSku || '—'}</td>
+            <td>${(row.productName || '—').replace(/</g, '&lt;')}</td>
+            <td>${(row.productSku || '—').replace(/</g, '&lt;')}</td>
             <td>${row.totalQuantity}</td>
             <td>$${Number(row.totalUsd).toFixed(2)}</td>
-          </tr>`)
+            <td>$${Number(costUsd).toFixed(2)}</td>
+            <td>$${Number(profitUsd).toFixed(2)}</td>
+            <td>${Number(marginPct).toFixed(1)}%</td>
+          </tr>`;
+            })
             .join('');
     }
     catch (e) {

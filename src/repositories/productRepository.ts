@@ -49,6 +49,26 @@ export class ProductRepository {
     return row || null;
   }
 
+  /** Búsqueda unificada para POS: por ID, código de barras, SKU o nombre */
+  async posSearch(term: string, limit = 50): Promise<Product[]> {
+    if (!term || !term.trim()) return this.getAll();
+    const db = await getDb();
+    const t = term.trim();
+    const like = `%${t}%`;
+    const idNum = /^\d+$/.test(t) ? parseInt(t, 10) : -1;
+    const rows = await db.all<Product[]>(
+      `SELECT p.*, c.name AS categoryName
+       FROM products p
+       LEFT JOIN categories c ON p.categoryId = c.id
+       WHERE p.isActive = 1
+         AND (p.id = ? OR p.barcode = ? OR p.sku LIKE ? OR p.name LIKE ?)
+       ORDER BY p.isFavorite DESC, p.name ASC
+       LIMIT ?`,
+      idNum, t, like, like, limit
+    );
+    return rows;
+  }
+
   async getByIds(ids: number[]): Promise<Product[]> {
     if (ids.length === 0) return [];
     const db = await getDb();

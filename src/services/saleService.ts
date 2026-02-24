@@ -50,12 +50,16 @@ export class SaleService {
     const totalBs = Math.round(totalUsd * exchangeRate * 100) / 100;
 
     const saleId = await this.salesRepo.createSale(
-      { totalUsd, totalBs, exchangeRate, discountPercent, notes: req.notes },
+      { totalUsd, totalBs, exchangeRate, discountPercent, notes: req.notes, clientId: req.clientId ?? null },
       lineItems,
       productUpdates,
       movements
     );
     return { id: saleId, totalUsd, totalBs };
+  }
+
+  async voidSale(id: number, reason?: string): Promise<void> {
+    await this.salesRepo.voidSale(id, reason);
   }
 
   async list(limit?: number, fromDate?: string, toDate?: string) {

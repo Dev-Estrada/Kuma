@@ -40,14 +40,17 @@ function renderTable(products) {
     tbody.innerHTML = products
         .map((p) => `<tr>
           <td><button type="button" class="btn-favorite ${p.isFavorite ? 'btn-favorite--on' : ''}" data-id="${p.id}" data-fav="${p.isFavorite ? '1' : '0'}" title="${p.isFavorite ? 'Quitar de favoritos' : 'Marcar favorito'}">★</button></td>
-          <td>${p.sku}</td>
-          <td>${p.name}</td>
+          <td>${p.id}</td>
+          <td>${(p.sku || '').replace(/</g, '&lt;')}</td>
+          <td>${(p.barcode || '—').replace(/</g, '&lt;')}</td>
+          <td>${(p.name || '').replace(/</g, '&lt;')}</td>
           <td>$${(p.listPrice ?? 0).toFixed(2)}</td>
+          <td>$${(p.costPrice ?? 0).toFixed(2)}</td>
           <td class="${stockClass(p)}">${p.quantity ?? 0}</td>
           <td>${p.minimumStock ?? 0}</td>
-          <td>${p.categoryName ?? ''}</td>
+          <td>${(p.categoryName || '—').replace(/</g, '&lt;')}</td>
           <td>
-            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-qty="${p.quantity ?? 0}">Ajustar</button>
+            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-qty="${p.quantity ?? 0}" title="Ajustar cantidad en stock">Ajustar</button>
             <button type="button" class="btn btn--sm btn--ghost edit-product" data-id="${p.id}">Editar</button>
             <button type="button" class="btn btn--sm btn--danger delete-product" data-id="${p.id}">Eliminar</button>
           </td>

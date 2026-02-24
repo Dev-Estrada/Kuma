@@ -12,6 +12,10 @@ export class ReportsService {
     return this.repo.getSalesByDateRange(fromDate, toDate);
   }
 
+  async getProfitByDateRange(fromDate: string, toDate: string) {
+    return this.repo.getProfitByDateRange(fromDate, toDate);
+  }
+
   async getTopProducts(limit?: number) {
     return this.repo.getTopProducts(limit ?? 20);
   }
@@ -20,5 +24,11 @@ export class ReportsService {
     const now = getVenezuelaNow();
     const today = now.slice(0, 10);
     return this.repo.getSalesByDateRange(today, today);
+  }
+
+  async getDaySummaryWithProfit() {
+    const now = getVenezuelaNow();
+    const today = now.slice(0, 10);
+    return this.repo.getProfitByDateRange(today, today);
   }
 }

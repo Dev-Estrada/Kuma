@@ -35,4 +35,15 @@ export class SaleController {
       res.status(500).json({ error: 'Error al obtener la venta' });
     }
   }
+
+  async void(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    const reason = (req.body && typeof req.body.reason === 'string') ? req.body.reason : undefined;
+    try {
+      await service.voidSale(id, reason);
+      res.json({ ok: true, message: 'Venta anulada' });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
 }

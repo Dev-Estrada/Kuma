@@ -6,6 +6,7 @@ const ctrl = new ProductController();
 
 router.get('/', ctrl.getAll.bind(ctrl));
 router.get('/search', ctrl.search.bind(ctrl));
+router.get('/pos-search', ctrl.posSearch.bind(ctrl));
 router.get('/low-stock', ctrl.lowStock.bind(ctrl));
 router.get('/expiring', ctrl.expiring.bind(ctrl));
 router.get('/export', ctrl.exportCsv.bind(ctrl));

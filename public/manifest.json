@@ -9,6 +9,12 @@
   "orientation": "any",
   "icons": [
     {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect fill='%231e293b' width='64' height='64' rx='8'/><text x='32' y='42' font-size='32' fill='%23e2e8f0' text-anchor='middle' font-family='sans-serif'>KUMA</text></svg>",
       "sizes": "64x64",
       "type": "image/svg+xml",

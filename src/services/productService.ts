@@ -20,6 +20,11 @@ export class ProductService {
     return this.repo.getByBarcode(barcode);
   }
 
+  /** Búsqueda unificada POS: por ID, código de barras, SKU o nombre */
+  async posSearch(term: string, limit?: number): Promise<Product[]> {
+    return this.repo.posSearch(term, limit ?? 50);
+  }
+
   async create(prod: Product): Promise<number> {
     if (!prod.name.trim()) {
       throw new Error('El nombre es obligatorio');

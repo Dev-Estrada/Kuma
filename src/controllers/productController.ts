@@ -46,6 +46,18 @@ export class ProductController {
     }
   }
 
+  /** Búsqueda unificada para POS: por ID, barcode, SKU o nombre */
+  async posSearch(req: Request, res: Response) {
+    const q = (req.query.q as string) || '';
+    const limit = req.query.limit ? Number(req.query.limit) : 50;
+    try {
+      const items = await service.posSearch(q.trim(), limit);
+      res.json(items);
+    } catch (err) {
+      res.status(500).json({ error: 'Error en búsqueda' });
+    }
+  }
+
   async create(req: Request, res: Response) {
     try {
       const newId = await service.create(req.body);

@@ -4,28 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KUMA - Reportes</title>
+  <link rel="icon" href="logo.png" type="image/png" />
   <link rel="stylesheet" href="css/styles.css" />
   <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');</script>
 </head>
 <body>
   <div class="app">
     <header class="topbar">
-      <span class="topbar__brand">KUMA</span>
+      <a href="index.html" class="topbar__brand">
+        <img src="logo.png" alt="KUMA" class="topbar__logo" />
+        <span>KUMA</span>
+      </a>
+      <div class="topbar__notifications-wrap">
+        <button type="button" class="topbar__notifications-btn" id="btn-notifications" aria-label="Notificaciones">
+          <span class="topbar__notifications-icon">🔔</span>
+          <span class="topbar__notifications-badge" id="notifications-badge" style="display:none;">0</span>
+        </button>
+        <div class="notifications-dropdown" id="notifications-dropdown">
+          <div class="notifications-dropdown__header">Notificaciones</div>
+          <div class="notifications-dropdown__list" id="notifications-list"></div>
+        </div>
+      </div>
       <nav class="topbar__nav">
         <a class="topbar__link" href="index.html">Inicio</a>
-        <a class="topbar__link" href="sales.html">Punto de venta <kbd>Ctrl+1</kbd></a>
-        <a class="topbar__link" href="inventory.html">Inventario <kbd>Ctrl+2</kbd></a>
-        <a class="topbar__link" href="sales-history.html">Ventas <kbd>Ctrl+3</kbd></a>
-        <a class="topbar__link active" href="reports.html">Reportes <kbd>Ctrl+5</kbd></a>
-        <a class="topbar__link" href="settings.html">Configuración <kbd>Ctrl+4</kbd></a>
+        <a class="topbar__link" href="sales.html">Punto de venta</a>
+        <a class="topbar__link" href="inventory.html">Inventario</a>
+        <a class="topbar__link" href="sales-history.html">Ventas</a>
+        <a class="topbar__link active" href="reports.html">Reportes</a>
+        <a class="topbar__link" href="entries.html">Entrada</a>
+        <a class="topbar__link" href="clients.html">Clientes</a>
+        <a class="topbar__link" href="settings.html">Configuración</a>
+        <span id="nav-auth"></span>
       </nav>
     </header>
     <main class="main">
       <h1 class="page-title">Reportes</h1>
-
+      <div class="cards-grid">
       <div class="card">
         <div class="card__title">Cierre del día (hoy)</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Resumen de ventas del día actual.</p>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Resumen de ventas del día actual: cantidad de ventas, totales en USD y Bs, costo de lo vendido, utilidad y margen.</p>
         <div id="day-summary-content" class="reports-summary">
           <span id="day-summary-msg">Cargando…</span>
         </div>
@@ -33,7 +50,7 @@
 
       <div class="card">
         <div class="card__title">Ventas por período</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Totales entre dos fechas (formato YYYY-MM-DD).</p>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Totales de ventas y utilidad entre dos fechas (formato YYYY-MM-DD). Solo ventas completadas.</p>
         <div class="form-row">
           <div class="form-group">
             <label for="report-from">Desde</label>
@@ -52,15 +69,15 @@
 
       <div class="card">
         <div class="card__title">Valor del inventario</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Valor total en costo y a precio de venta (productos activos).</p>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Valor total en costo y a precio de venta (productos activos). Incluye cantidad de productos, unidades en stock y diferencia potencial.</p>
         <div id="inventory-value-content" class="reports-summary">
           <span id="inventory-value-msg">Cargando…</span>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card__title">Productos más vendidos</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Top 20 por cantidad vendida.</p>
+      <div class="card card--full-width">
+        <div class="card__title">Productos más vendidos (con utilidad y margen)</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Top 20 por cantidad vendida. Utilidad y margen calculados con precio de costo actual del producto.</p>
         <div class="table-wrap">
           <table>
             <thead>
@@ -68,8 +85,11 @@
                 <th>#</th>
                 <th>Producto</th>
                 <th>SKU</th>
-                <th>Cantidad vendida</th>
-                <th>Total USD</th>
+                <th>Cant. vendida</th>
+                <th>Ventas USD</th>
+                <th>Costo USD</th>
+                <th>Utilidad USD</th>
+                <th>Margen %</th>
               </tr>
             </thead>
             <tbody id="top-products-tbody"></tbody>
@@ -77,19 +97,26 @@
         </div>
         <p class="text-muted mt-1 mb-0" id="top-products-msg">Cargando…</p>
       </div>
+      </div>
     </main>
   </div>
   <script>
     document.addEventListener('keydown', function(e) {
       if (!e.ctrlKey) return;
-      if (e.key === '0') { e.preventDefault(); location.href = 'index.html'; }
-      if (e.key === '1') { e.preventDefault(); location.href = 'sales.html'; }
-      if (e.key === '2') { e.preventDefault(); location.href = 'inventory.html'; }
-      if (e.key === '3') { e.preventDefault(); location.href = 'sales-history.html'; }
-      if (e.key === '4') { e.preventDefault(); location.href = 'settings.html'; }
+      if (e.key === '1') { e.preventDefault(); location.href = 'index.html'; }
+      if (e.key === '2') { e.preventDefault(); location.href = 'sales.html'; }
+      if (e.key === '3') { e.preventDefault(); location.href = 'inventory.html'; }
+      if (e.key === '4') { e.preventDefault(); location.href = 'sales-history.html'; }
       if (e.key === '5') { e.preventDefault(); location.href = 'reports.html'; }
+      if (e.key === '6') { e.preventDefault(); location.href = 'entries.html'; }
+      if (e.key === '7') { e.preventDefault(); location.href = 'clients.html'; }
+      if (e.key === '8') { e.preventDefault(); location.href = 'settings.html'; }
     });
   </script>
+  <div id="alert-modal-root"></div>
+  <script src="js/auth.js"></script>
+  <script src="js/auth-nav.js"></script>
+  <script src="js/alerts-notifications.js"></script>
   <script type="module" src="js/reports.js"></script>
 </body>
 </html>

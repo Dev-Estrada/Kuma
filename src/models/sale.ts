@@ -14,6 +14,10 @@ export interface Sale {
   exchangeRate: number;
   discountPercent?: number;
   notes?: string;
+  status?: 'completada' | 'anulada';
+  voidedAt?: string;
+  voidReason?: string;
+  clientId?: number | null;
   createdAt?: string;
   items?: SaleItem[];
 }
@@ -22,4 +26,5 @@ export interface SaleCreateRequest {
   items: { productId: number; quantity: number }[];
   discountPercent?: number;
   notes?: string;
+  clientId?: number | null;
 }

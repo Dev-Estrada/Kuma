@@ -39,15 +39,20 @@ function formatDateTime(s) {
 }
 function renderSalesRows(sales) {
     const tbody = document.getElementById('sales-tbody');
+    const statusLabel = (s) => (s.status === 'anulada' ? 'Anulada' : 'Completada');
     tbody.innerHTML = sales
         .map((s) => `<tr>
           <td><strong>#${s.id}</strong></td>
+          <td>${statusLabel(s)}</td>
           <td>${formatDateTime(s.createdAt)}</td>
           <td>${Number(s.exchangeRate).toFixed(2)}</td>
           <td>$${Number(s.totalUsd).toFixed(2)}</td>
           <td>Bs ${Number(s.totalBs).toFixed(2)}</td>
           <td>${s.itemCount ?? '-'}</td>
-          <td><button type="button" class="btn btn--sm btn--ghost btn-view-detail" data-sale-id="${s.id}">Ver detalle</button></td>
+          <td>${(s.clientName || '—').replace(/</g, '&lt;')}</td>
+          <td>
+            <button type="button" class="btn btn--sm btn--ghost btn-view-detail" data-sale-id="${s.id}">Ver detalle</button>
+          </td>
         </tr>`)
         .join('');
 }
