@@ -15,8 +15,10 @@ export class SaleController {
 
   async list(req: Request, res: Response) {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
     try {
-      const sales = await service.list(limit);
+      const sales = await service.list(limit, from, to);
       res.json(sales);
     } catch (err) {
       res.status(500).json({ error: 'Error al listar ventas' });

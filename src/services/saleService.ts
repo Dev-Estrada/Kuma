@@ -58,7 +58,8 @@ export class SaleService {
     return { id: saleId, totalUsd, totalBs };
   }
 
-  async list(limit?: number) {
+  async list(limit?: number, fromDate?: string, toDate?: string) {
+    if (fromDate && toDate) return this.salesRepo.listByDateRange(fromDate, toDate);
     return this.salesRepo.list(limit ?? 100);
   }
 

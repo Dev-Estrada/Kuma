@@ -34,6 +34,18 @@ export class ProductController {
     }
   }
 
+  async getByBarcode(req: Request, res: Response) {
+    const barcode = typeof req.query.barcode === 'string' ? req.query.barcode.trim() : '';
+    if (!barcode) return res.status(400).json({ error: 'Se requiere barcode' });
+    try {
+      const item = await service.getByBarcode(barcode);
+      if (!item) return res.status(404).json({ error: 'Producto no encontrado' });
+      res.json(item);
+    } catch (err) {
+      res.status(500).json({ error: 'Error al obtener el producto' });
+    }
+  }
+
   async create(req: Request, res: Response) {
     try {
       const newId = await service.create(req.body);
@@ -69,6 +81,38 @@ export class ProductController {
       res.json(items);
     } catch (err) {
       res.status(500).json({ error: 'Error al obtener productos con poco stock' });
+    }
+  }
+
+  async expiring(req: Request, res: Response) {
+    const days = req.query.days ? Number(req.query.days) : 30;
+    try {
+      const items = await service.getExpiring(days);
+      res.json(items);
+    } catch (err) {
+      res.status(500).json({ error: 'Error al obtener productos por vencer' });
+    }
+  }
+
+  async exportCsv(req: Request, res: Response) {
+    try {
+      const csv = await service.exportCsv();
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="inventario.csv"');
+      res.send('\uFEFF' + csv);
+    } catch (err) {
+      res.status(500).json({ error: 'Error al exportar inventario' });
+    }
+  }
+
+  async setFavorite(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    const isFavorite = req.body?.isFavorite === true;
+    try {
+      await service.setFavorite(id, isFavorite);
+      res.sendStatus(204);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
     }
   }
 }

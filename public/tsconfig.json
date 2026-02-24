@@ -8,5 +8,5 @@
     "types": [],
     "skipLibCheck": true
   },
-  "include": ["main.ts", "sales.ts", "inventory.ts", "settings.ts", "sales-history.ts"]
+  "include": ["main.ts", "sales.ts", "inventory.ts", "settings.ts", "sales-history.ts","reports.ts"]
 }

@@ -16,6 +16,10 @@ export class ProductService {
     return this.repo.getById(id);
   }
 
+  async getByBarcode(barcode: string): Promise<Product | null> {
+    return this.repo.getByBarcode(barcode);
+  }
+
   async create(prod: Product): Promise<number> {
     if (!prod.name.trim()) {
       throw new Error('El nombre es obligatorio');
@@ -60,5 +64,40 @@ export class ProductService {
 
   async lowStock(): Promise<Product[]> {
     return this.repo.lowStock();
+  }
+
+  async getExpiring(days?: number): Promise<Product[]> {
+    return this.repo.getExpiring(days ?? 30);
+  }
+
+  async setFavorite(id: number, isFavorite: boolean): Promise<void> {
+    await this.repo.setFavorite(id, isFavorite);
+  }
+
+  async exportCsv(): Promise<string> {
+    const products = await this.repo.getAll();
+    const headers = [
+      'sku',
+      'name',
+      'barcode',
+      'categoryName',
+      'quantity',
+      'unitOfMeasure',
+      'listPrice',
+      'costPrice',
+      'minimumStock',
+      'maximumStock',
+      'brand',
+      'expiryDate',
+      'isFavorite',
+    ];
+    const escape = (v: unknown) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = products.map((p) =>
+      headers.map((h) => escape((p as unknown as Record<string, unknown>)[h])).join(',')
+    );
+    return [headers.join(','), ...rows].join('\r\n');
   }
 }

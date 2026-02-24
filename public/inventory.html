@@ -3,19 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventario - POS</title>
+  <title>KUMA - Inventario</title>
   <link rel="stylesheet" href="css/styles.css" />
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');</script>
 </head>
 <body>
   <div class="app">
-    <nav class="nav">
-      <div class="nav__brand">POS · Inventario</div>
-      <a class="nav__link" href="index.html">Inicio</a>
-      <a class="nav__link" href="sales.html">Punto de venta</a>
-      <a class="nav__link active" href="inventory.html">Inventario</a>
-      <a class="nav__link" href="sales-history.html">Ventas</a>
-      <a class="nav__link" href="settings.html">Configuración</a>
-    </nav>
+    <header class="topbar">
+      <span class="topbar__brand">KUMA</span>
+      <nav class="topbar__nav">
+        <a class="topbar__link" href="index.html">Inicio <kbd>Ctrl+0</kbd></a>
+        <a class="topbar__link" href="sales.html">Punto de venta <kbd>Ctrl+1</kbd></a>
+        <a class="topbar__link active" href="inventory.html">Inventario <kbd>Ctrl+2</kbd></a>
+        <a class="topbar__link" href="sales-history.html">Ventas <kbd>Ctrl+3</kbd></a>
+        <a class="topbar__link" href="reports.html">Reportes <kbd>Ctrl+5</kbd></a>
+        <a class="topbar__link" href="settings.html">Configuración <kbd>Ctrl+4</kbd></a>
+      </nav>
+    </header>
     <main class="main">
       <div id="low-stock-banner" class="alert alert--warning" style="display:none;">
         <strong>Reponer inventario:</strong> <span id="low-stock-banner-text"></span>
@@ -27,12 +31,14 @@
           <option value="">Todas las categorías</option>
         </select>
         <button type="button" class="btn btn--ghost" id="btn-low-stock">Bajo stock</button>
+        <a href="#" class="btn btn--ghost" id="btn-export-csv">Exportar CSV</a>
         <button type="button" class="btn btn--primary" id="btn-new">Nuevo producto</button>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
+              <th></th>
               <th>SKU</th>
               <th>Nombre</th>
               <th>Precio USD</th>
@@ -96,6 +102,37 @@
       </form>
     </div>
   </div>
+
+  <div class="overlay" id="adjust-modal" style="display:none;">
+    <div class="modal">
+      <h2 class="modal__title" id="adjust-modal-title">Ajustar stock</h2>
+      <p class="text-muted" id="adjust-product-name"></p>
+      <input type="hidden" id="adjust-product-id" />
+      <div class="form-group">
+        <label for="adjust-delta">Cambio de cantidad (positivo = sumar, negativo = restar)</label>
+        <input type="number" id="adjust-delta" value="0" />
+      </div>
+      <div class="form-group">
+        <label for="adjust-reason">Motivo (opcional)</label>
+        <input type="text" id="adjust-reason" placeholder="Ej: Conteo físico, daño" />
+      </div>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" id="btn-adjust-cancel">Cancelar</button>
+        <button type="button" class="btn btn--primary" id="btn-adjust-save">Aplicar ajuste</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('keydown', function(e) {
+      if (!e.ctrlKey) return;
+      if (e.key === '0') { e.preventDefault(); location.href = 'index.html'; }
+      if (e.key === '1') { e.preventDefault(); location.href = 'sales.html'; }
+      if (e.key === '2') { e.preventDefault(); location.href = 'inventory.html'; }
+      if (e.key === '3') { e.preventDefault(); location.href = 'sales-history.html'; }
+      if (e.key === '4') { e.preventDefault(); location.href = 'settings.html'; }
+      if (e.key === '5') { e.preventDefault(); location.href = 'reports.html'; }
+    });
+  </script>
   <script type="module" src="js/inventory.js"></script>
 </body>
 </html>

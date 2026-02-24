@@ -15,6 +15,7 @@ interface Product {
   costPrice?: number;
   categoryId?: number;
   categoryName?: string;
+  isFavorite?: boolean;
 }
 
 let allCategories: Category[] = [];
@@ -62,6 +63,7 @@ function renderTable(products: Product[]) {
     .map(
       (p) =>
         `<tr>
+          <td><button type="button" class="btn-favorite ${p.isFavorite ? 'btn-favorite--on' : ''}" data-id="${p.id}" data-fav="${p.isFavorite ? '1' : '0'}" title="${p.isFavorite ? 'Quitar de favoritos' : 'Marcar favorito'}">★</button></td>
           <td>${p.sku}</td>
           <td>${p.name}</td>
           <td>$${(p.listPrice ?? 0).toFixed(2)}</td>
@@ -69,6 +71,7 @@ function renderTable(products: Product[]) {
           <td>${p.minimumStock ?? 0}</td>
           <td>${p.categoryName ?? ''}</td>
           <td>
+            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-qty="${p.quantity ?? 0}">Ajustar</button>
             <button type="button" class="btn btn--sm btn--ghost edit-product" data-id="${p.id}">Editar</button>
             <button type="button" class="btn btn--sm btn--danger delete-product" data-id="${p.id}">Eliminar</button>
           </td>
@@ -161,11 +164,55 @@ modal.addEventListener('click', (e) => {
 });
 
 document.getElementById('btn-new')?.addEventListener('click', () => openModal());
+
+document.getElementById('btn-export-csv')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  try {
+    const res = await fetch(`${API}/api/products/export`);
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'inventario.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (_) {
+    alert('Error al exportar. Comprueba la conexión.');
+  }
+});
+
 document.getElementById('products-tbody')?.addEventListener('click', async (e) => {
   const t = e.target as HTMLElement;
-  const idAttr = t.closest('button')?.getAttribute('data-id');
+  const btn = t.closest('button');
+  const idAttr = btn?.getAttribute('data-id');
   if (!idAttr) return;
   const id = Number(idAttr);
+  if (t.classList.contains('btn-favorite') || (btn?.classList.contains('btn-favorite'))) {
+    const b = (btn || t) as HTMLElement;
+    const isFav = b.getAttribute('data-fav') !== '1';
+    try {
+      await fetch(`${API}/api/products/${id}/favorite`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isFavorite: isFav }),
+      });
+      loadAndRender();
+    } catch (_) {
+      alert('Error al actualizar favorito.');
+    }
+    return;
+  }
+  if ((t.classList.contains('adjust-stock') || btn?.classList.contains('adjust-stock'))) {
+    const row = (btn || t).closest('tr');
+    const name = (btn || t).getAttribute('data-name') || row?.querySelector('td:nth-child(3)')?.textContent || 'Producto';
+    const qty = parseInt((btn || t).getAttribute('data-qty') || '0', 10);
+    (document.getElementById('adjust-product-id') as HTMLInputElement).value = String(id);
+    document.getElementById('adjust-product-name')!.textContent = `Producto: ${name} · Stock actual: ${qty}`;
+    (document.getElementById('adjust-delta') as HTMLInputElement).value = '0';
+    (document.getElementById('adjust-reason') as HTMLInputElement).value = '';
+    (document.getElementById('adjust-modal') as HTMLElement).style.display = 'flex';
+    return;
+  }
   if (t.classList.contains('edit-product')) {
     const res = await fetch(`${API}/api/products/${id}`);
     const p = await res.json();
@@ -175,6 +222,38 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
     if (!confirm('¿Eliminar este producto?')) return;
     await fetch(`${API}/api/products/${id}`, { method: 'DELETE' });
     loadAndRender();
+  }
+});
+
+document.getElementById('btn-adjust-cancel')?.addEventListener('click', () => {
+  (document.getElementById('adjust-modal') as HTMLElement).style.display = 'none';
+});
+document.getElementById('adjust-modal')?.addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).classList.contains('overlay')) (document.getElementById('adjust-modal') as HTMLElement).style.display = 'none';
+});
+document.getElementById('btn-adjust-save')?.addEventListener('click', async () => {
+  const id = Number((document.getElementById('adjust-product-id') as HTMLInputElement).value);
+  const delta = parseInt((document.getElementById('adjust-delta') as HTMLInputElement).value, 10);
+  const reason = (document.getElementById('adjust-reason') as HTMLInputElement).value.trim();
+  if (isNaN(delta) || delta === 0) {
+    alert('Indica un cambio de cantidad (positivo o negativo).');
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/movements/adjustment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: id, quantity: delta, reason: reason || undefined }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert((data as { error?: string }).error || 'Error al ajustar');
+      return;
+    }
+    (document.getElementById('adjust-modal') as HTMLElement).style.display = 'none';
+    loadAndRender();
+  } catch (_) {
+    alert('Error de conexión.');
   }
 });
 

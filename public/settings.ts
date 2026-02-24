@@ -13,19 +13,32 @@ async function getJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function formatDateTime(s: string): string {
-  if (!s) return '—';
-  const iso = s.includes('T') ? s : s.replace(' ', 'T');
-  const d = new Date(iso.includes('Z') || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : iso + '-04:00');
-  return d.toLocaleDateString('es-VE', {
-    timeZone: 'America/Caracas',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+function formatDateTime(s: string | number | null | undefined): string {
+  try {
+    if (s == null) return '—';
+    if (typeof s === 'number') {
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    const raw = String(s).trim();
+    if (!raw) return '—';
+    const iso = raw.includes('T') ? raw : raw.replace(/\s+/, 'T');
+    const withTz = /[Zz]$|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + '-04:00';
+    const d = new Date(withTz);
+    if (Number.isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString('es-VE', {
+      timeZone: 'America/Caracas',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  } catch {
+    return typeof s === 'string' ? s : '—';
+  }
 }
 
 function showMsg(el: HTMLElement, text: string, isError: boolean) {
@@ -98,7 +111,50 @@ async function saveRate() {
   }
 }
 
+const THEME_KEY = 'theme';
+
+function getTheme(): 'light' | 'dark' {
+  return (localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light') as 'light' | 'dark';
+}
+
+function setTheme(theme: 'light' | 'dark') {
+  localStorage.setItem(THEME_KEY, theme);
+  document.documentElement.setAttribute('data-theme', theme);
+  const label = document.getElementById('theme-toggle-label');
+  if (label) label.textContent = theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
+}
+
+function toggleTheme() {
+  setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+}
+
+document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
+setTheme(getTheme());
+
 document.getElementById('btn-save-rate')?.addEventListener('click', saveRate);
+
+async function showRateReminder() {
+  try {
+    const r = await getJson<{ lastUpdate: string | null }>('/api/settings/last-rate-update');
+    if (!r.lastUpdate) return;
+    const last = new Date(r.lastUpdate);
+    const days = (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24);
+    if (days > 7) {
+      const banner = document.getElementById('rate-reminder-banner');
+      if (banner) {
+        banner.innerHTML = `La tasa de cambio no se actualiza desde hace más de 7 días. Actualízala para reflejar el valor correcto en bolívares. <a href="settings.html" class="alert__link">Actualizar aquí</a>`;
+        banner.style.display = 'block';
+      }
+    }
+  } catch (_) {}
+}
+
+const rateBanner = document.getElementById('rate-reminder-banner');
+if (rateBanner) showRateReminder();
+
+const backupLink = document.getElementById('btn-backup') as HTMLAnchorElement;
+if (backupLink) backupLink.href = `${API}/api/backup`;
+
 loadRate();
 loadRateHistory();
 export {};

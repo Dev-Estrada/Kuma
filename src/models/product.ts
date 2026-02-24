@@ -15,8 +15,10 @@ export interface Product {
   listPrice?: number;
   supplierInfo?: string;
   isActive?: boolean;
+  isFavorite?: boolean;
   imageUrl?: string;
   notes?: string;
+  expiryDate?: string;
   createdAt?: string;
   updatedAt?: string;
 }

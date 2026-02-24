@@ -36,19 +36,32 @@ async function getJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function formatDateTime(s: string): string {
-  if (!s) return '—';
-  const iso = s.includes('T') ? s : s.replace(' ', 'T');
-  const d = new Date(iso.includes('Z') || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : iso + '-04:00');
-  return d.toLocaleDateString('es-VE', {
-    timeZone: 'America/Caracas',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+function formatDateTime(s: string | number | null | undefined): string {
+  try {
+    if (s == null) return '—';
+    if (typeof s === 'number') {
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    const raw = String(s).trim();
+    if (!raw) return '—';
+    const iso = raw.includes('T') ? raw : raw.replace(/\s+/, 'T');
+    const withTz = /[Zz]$|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + '-04:00';
+    const d = new Date(withTz);
+    if (Number.isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString('es-VE', {
+      timeZone: 'America/Caracas',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  } catch {
+    return typeof s === 'string' ? s : '—';
+  }
 }
 
 function renderSalesRows(sales: SaleListItem[]) {
@@ -71,14 +84,31 @@ function renderSalesRows(sales: SaleListItem[]) {
 
 let allSales: SaleListItem[] = [];
 
-async function loadSalesList() {
+function todayStr(): string {
+  const d = new Date();
+  const y = d.toLocaleString('en-CA', { timeZone: 'America/Caracas', year: 'numeric' });
+  const m = d.toLocaleString('en-CA', { timeZone: 'America/Caracas', month: '2-digit' });
+  const day = d.toLocaleString('en-CA', { timeZone: 'America/Caracas', day: '2-digit' });
+  return `${y}-${m}-${day}`;
+}
+
+async function loadSalesList(useDateFilter?: boolean) {
   const tbody = document.getElementById('sales-tbody')!;
   const msg = document.getElementById('sales-msg')!;
+  const fromEl = document.getElementById('filter-from') as HTMLInputElement;
+  const toEl = document.getElementById('filter-to') as HTMLInputElement;
+  const from = useDateFilter && fromEl?.value ? fromEl.value : '';
+  const to = useDateFilter && toEl?.value ? toEl.value : '';
   try {
-    const sales = await getJson<SaleListItem[]>('/api/sales?limit=200');
+    let sales: SaleListItem[];
+    if (from && to) {
+      sales = await getJson<SaleListItem[]>(`/api/sales?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    } else {
+      sales = await getJson<SaleListItem[]>('/api/sales?limit=200');
+    }
     allSales = sales;
     if (sales.length === 0) {
-      msg.textContent = 'No hay ventas registradas.';
+      msg.textContent = from && to ? 'No hay ventas en ese rango de fechas.' : 'No hay ventas registradas.';
       tbody.innerHTML = '';
       return;
     }
@@ -182,6 +212,14 @@ document.getElementById('sale-search')?.addEventListener('input', applySaleFilte
 document.getElementById('sale-search')?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
 });
+document.getElementById('btn-filter-dates')?.addEventListener('click', () => loadSalesList(true));
+document.getElementById('btn-clear-dates')?.addEventListener('click', () => {
+  const fromEl = document.getElementById('filter-from') as HTMLInputElement;
+  const toEl = document.getElementById('filter-to') as HTMLInputElement;
+  if (fromEl) fromEl.value = '';
+  if (toEl) toEl.value = '';
+  loadSalesList(false);
+});
 
-loadSalesList();
+loadSalesList(false);
 export {};

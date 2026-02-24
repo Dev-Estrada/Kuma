@@ -1,8 +1,10 @@
 import { Movement } from '../models/movement';
 import { MovementRepository } from '../repositories/movementRepository';
+import { ProductRepository } from '../repositories/productRepository';
 
 export class MovementService {
   private repo = new MovementRepository();
+  private productRepo = new ProductRepository();
 
   async list(): Promise<Movement[]> {
     return this.repo.getAll();
@@ -13,7 +15,26 @@ export class MovementService {
   }
 
   async record(m: Movement): Promise<number> {
-    // could add validations here
     return this.repo.create(m);
+  }
+
+  async recordAdjustment(productId: number, quantityDelta: number, reason?: string): Promise<void> {
+    if (quantityDelta === 0) throw new Error('El ajuste no puede ser cero');
+    const product = await this.productRepo.getById(productId);
+    if (!product) throw new Error('Producto no encontrado');
+    const previousQuantity = product.quantity ?? 0;
+    const newQuantity = previousQuantity + quantityDelta;
+    if (newQuantity < 0) throw new Error('Stock insuficiente para este ajuste');
+    await this.productRepo.updateQuantity(productId, newQuantity);
+    const movement: Movement = {
+      productId,
+      movementType: 'ajuste',
+      quantity: Math.abs(quantityDelta),
+      previousQuantity,
+      newQuantity,
+      reason: reason ?? 'Ajuste de inventario',
+      notes: reason ?? 'Ajuste de inventario',
+    };
+    await this.repo.create(movement);
   }
 }

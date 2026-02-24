@@ -69,6 +69,22 @@ export class SalesRepository {
     return rows;
   }
 
+  async listByDateRange(fromDate: string, toDate: string): Promise<(Sale & { itemCount?: number })[]> {
+    const db = await getDb();
+    const from = `${fromDate} 00:00:00`;
+    const to = `${toDate} 23:59:59`;
+    return db.all<(Sale & { itemCount: number })[]>(
+      `SELECT s.*, COUNT(si.id) AS itemCount
+       FROM sales s
+       LEFT JOIN sale_items si ON si.saleId = s.id
+       WHERE s.createdAt >= ? AND s.createdAt <= ?
+       GROUP BY s.id
+       ORDER BY s.createdAt DESC`,
+      from,
+      to
+    );
+  }
+
   async getById(id: number): Promise<(Sale & { items: (SaleItem & { productName?: string; productSku?: string })[] }) | null> {
     const db = await getDb();
     const sale = await db.get<Sale>('SELECT * FROM sales WHERE id = ?', id);

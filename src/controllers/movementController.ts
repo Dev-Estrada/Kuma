@@ -31,4 +31,19 @@ export class MovementController {
       res.status(400).json({ error: err.message });
     }
   }
+
+  async adjustment(req: Request, res: Response) {
+    const { productId, quantity, reason } = req.body || {};
+    const pid = productId != null ? Number(productId) : NaN;
+    const delta = quantity != null ? Number(quantity) : NaN;
+    if (isNaN(pid) || isNaN(delta)) {
+      return res.status(400).json({ error: 'Se requieren productId y quantity (número)' });
+    }
+    try {
+      await service.recordAdjustment(pid, delta, typeof reason === 'string' ? reason : undefined);
+      res.sendStatus(204);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  }
 }

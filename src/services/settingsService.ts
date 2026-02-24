@@ -16,4 +16,8 @@ export class SettingsService {
   async getExchangeRateHistory(limit?: number) {
     return this.repo.getExchangeRateHistory(limit ?? 100);
   }
+
+  async getLastRateUpdate(): Promise<string | null> {
+    return this.repo.getLastRateUpdate();
+  }
 }

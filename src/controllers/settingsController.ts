@@ -36,4 +36,13 @@ export class SettingsController {
       res.status(500).json({ error: 'Error al obtener historial de tasa' });
     }
   }
+
+  async lastRateUpdate(req: Request, res: Response) {
+    try {
+      const lastUpdate = await service.getLastRateUpdate();
+      res.json({ lastUpdate });
+    } catch (err) {
+      res.status(500).json({ error: 'Error al obtener última actualización de tasa' });
+    }
+  }
 }

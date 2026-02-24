@@ -46,4 +46,12 @@ export class SettingsRepository {
       limit
     );
   }
+
+  async getLastRateUpdate(): Promise<string | null> {
+    const db = await getDb();
+    const row = await db.get<{ createdAt: string }>(
+      'SELECT createdAt FROM exchange_rate_history ORDER BY createdAt DESC LIMIT 1'
+    );
+    return row?.createdAt ?? null;
+  }
 }

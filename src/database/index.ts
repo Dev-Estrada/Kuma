@@ -42,8 +42,10 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
           costPrice REAL DEFAULT 0,
           supplierInfo TEXT,
           isActive BOOLEAN DEFAULT 1,
+          isFavorite BOOLEAN DEFAULT 0,
           imageUrl TEXT,
           notes TEXT,
+          expiryDate TEXT,
           createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
           updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE SET NULL,
@@ -184,6 +186,9 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
         getVenezuelaNow()
       );
     }
+
+    try { await db.run('ALTER TABLE products ADD COLUMN isFavorite BOOLEAN DEFAULT 0'); } catch (_) {}
+    try { await db.run('ALTER TABLE products ADD COLUMN expiryDate TEXT'); } catch (_) {}
   }
 
   return db;

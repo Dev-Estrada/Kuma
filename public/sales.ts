@@ -7,6 +7,8 @@ interface Product {
   quantity: number;
   listPrice?: number;
   categoryName?: string;
+  isFavorite?: boolean;
+  barcode?: string;
 }
 
 interface CartLine {
@@ -37,6 +39,7 @@ async function loadRate() {
 
 async function loadProducts() {
   products = await getJson<Product[]>('/api/products');
+  products.sort((a, b) => (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0));
   renderProductGrid(products);
 }
 
@@ -51,7 +54,7 @@ function renderProductGrid(list: Product[]) {
     .map(
       (p) =>
         `<div class="product-tile" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-sku="${(p.sku || '').replace(/"/g, '&quot;')}" data-price="${p.listPrice ?? 0}" data-qty="${p.quantity ?? 0}">
-          <div class="product-tile__name">${p.name || p.sku}</div>
+          <div class="product-tile__name">${p.isFavorite ? '★ ' : ''}${p.name || p.sku}</div>
           <div class="product-tile__meta">${p.sku} · Stock: ${p.quantity ?? 0}</div>
           <div class="product-tile__price">$${(p.listPrice ?? 0).toFixed(2)} USD</div>
         </div>`
@@ -107,11 +110,18 @@ function renderCart() {
   (document.getElementById('total-bs') as HTMLElement).textContent = `Bs ${totalBs.toFixed(2)}`;
 }
 
+function getPosQuantity(): number {
+  const input = document.getElementById('pos-quantity') as HTMLInputElement;
+  const n = parseInt(input?.value || '1', 10);
+  return isNaN(n) || n < 1 ? 1 : n;
+}
+
 function addToCart(productId: number, name: string, sku: string, unitPriceUsd: number, _qty: number) {
   const product = products.find((p) => p.id === productId);
   const inCart = cart.reduce((s, l) => (l.productId === productId ? s + l.quantity : s), 0);
   const available = (product?.quantity ?? 0) - inCart;
-  const addQty = Math.min(1, available);
+  const want = getPosQuantity();
+  const addQty = Math.min(want, available);
   if (addQty <= 0) return;
   const existing = cart.find((l) => l.productId === productId);
   if (existing) {
@@ -174,7 +184,7 @@ function showMsg(text: string, isError: boolean) {
   }, 4000);
 }
 
-async function completeSale() {
+async function completeSale(retries = 1) {
   if (cart.length === 0) {
     showMsg('Añade al menos un producto al carrito.', true);
     return;
@@ -193,14 +203,19 @@ async function completeSale() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      showMsg(data.error || 'Error al registrar la venta', true);
+      showMsg((data as { error?: string }).error || 'Error al registrar la venta', true);
       return;
     }
     showMsg(`Venta #${data.id} registrada. Total: $${data.totalUsd.toFixed(2)} USD / Bs ${data.totalBs.toFixed(2)}`, false);
     clearCart();
     loadProducts();
   } catch (e) {
-    showMsg('Error de conexión', true);
+    if (retries > 0) {
+      showMsg('Sin conexión. Reintentando…', true);
+      setTimeout(() => completeSale(retries - 1), 1500);
+    } else {
+      showMsg('Sin conexión. Revisa la red y vuelve a intentar.', true);
+    }
   }
 }
 
@@ -235,7 +250,7 @@ document.getElementById('cart-items')?.addEventListener('click', (e) => {
 
 document.getElementById('sale-discount')?.addEventListener('input', renderCart);
 
-document.getElementById('btn-complete')?.addEventListener('click', completeSale);
+document.getElementById('btn-complete')?.addEventListener('click', () => completeSale());
 document.getElementById('btn-clear')?.addEventListener('click', clearCart);
 
 document.getElementById('product-search')?.addEventListener('input', (e) => {
@@ -246,6 +261,35 @@ document.getElementById('product-search')?.addEventListener('input', (e) => {
   }
   const filtered = products.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
   renderProductGrid(filtered);
+});
+
+document.getElementById('barcode-input')?.addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter') return;
+  const input = e.target as HTMLInputElement;
+  const barcode = input.value.trim();
+  if (!barcode) return;
+  e.preventDefault();
+  try {
+    const res = await fetch(`${API}/api/products/by-barcode?barcode=${encodeURIComponent(barcode)}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showMsg((data as { error?: string }).error || 'Producto no encontrado', true);
+      return;
+    }
+    const p = await res.json() as Product;
+    const available = (p.quantity ?? 0) - cart.reduce((s, l) => (l.productId === p.id ? s + l.quantity : s), 0);
+    const want = getPosQuantity();
+    const addQty = Math.min(want, available);
+    if (addQty <= 0) {
+      showMsg('Sin stock disponible para este producto.', true);
+      return;
+    }
+    addToCart(p.id, p.name || p.sku, p.sku || '', p.listPrice ?? 0, p.quantity ?? 0);
+    input.value = '';
+    showMsg(`Añadido: ${p.name || p.sku} x${addQty}`, false);
+  } catch (_) {
+    showMsg('Error de conexión', true);
+  }
 });
 
 async function loadLowStockBanner() {
