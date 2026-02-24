@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Historial de ventas - POS</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <nav class="nav">
+      <div class="nav__brand">POS · Inventario</div>
+      <a class="nav__link" href="index.html">Inicio</a>
+      <a class="nav__link" href="sales.html">Punto de venta</a>
+      <a class="nav__link" href="inventory.html">Inventario</a>
+      <a class="nav__link active" href="sales-history.html">Ventas</a>
+      <a class="nav__link" href="settings.html">Configuración</a>
+    </nav>
+    <main class="main">
+      <h1 class="page-title">Historial de ventas</h1>
+      <div class="controls-bar">
+        <input type="text" id="sale-search" placeholder="Buscar por ID de venta (ej: 5 o 12)" />
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Fecha y hora</th>
+              <th>Tasa (Bs/USD)</th>
+              <th>Total USD</th>
+              <th>Total Bs</th>
+              <th>Items</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="sales-tbody"></tbody>
+        </table>
+      </div>
+      <p class="text-muted mt-1 mb-0" id="sales-msg">Cargando…</p>
+    </main>
+  </div>
+
+  <div class="overlay" id="sale-detail-modal" style="display:none;">
+    <div class="modal modal--wide">
+      <h2 class="modal__title" id="sale-detail-title">Venta #—</h2>
+      <div id="sale-detail-content"></div>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" id="btn-close-detail">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="js/sales-history.js"></script>
+</body>
+</html>

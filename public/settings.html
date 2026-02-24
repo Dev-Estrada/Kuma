@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuración - POS</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <nav class="nav">
+      <div class="nav__brand">POS · Inventario</div>
+      <a class="nav__link" href="index.html">Inicio</a>
+      <a class="nav__link" href="sales.html">Punto de venta</a>
+      <a class="nav__link" href="inventory.html">Inventario</a>
+      <a class="nav__link" href="sales-history.html">Ventas</a>
+      <a class="nav__link active" href="settings.html">Configuración</a>
+    </nav>
+    <main class="main">
+      <h1 class="page-title">Configuración</h1>
+      <div class="card settings-card">
+        <div class="card__title">Tasa de cambio (USD → Bs)</div>
+        <p class="text-muted" style="margin: 0 0 1rem;">Los precios se guardan en dólares. Esta tasa se usa para mostrar totales en bolívares en el punto de venta. Cada cambio queda registrado en el historial para auditoría.</p>
+        <div class="form-group">
+          <label for="exchange-rate">Tasa actual (Bs por 1 USD)</label>
+          <input type="number" id="exchange-rate" min="0.01" step="0.01" placeholder="36.50" />
+        </div>
+        <div class="form-group">
+          <label for="rate-notes">Nota (opcional, para auditoría)</label>
+          <input type="text" id="rate-notes" placeholder="Ej: Tasa BCV 23/02/2025" />
+        </div>
+        <div class="form-row mt-1">
+          <button type="button" class="btn btn--primary" id="btn-save-rate">Guardar tasa</button>
+        </div>
+        <div id="settings-msg"></div>
+      </div>
+      <div class="card">
+        <div class="card__title">Historial de tasa de cambio (auditoría)</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Registro de cada cambio de tasa con fecha y hora.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha y hora</th>
+                <th>Tasa (Bs/USD)</th>
+                <th>Nota</th>
+              </tr>
+            </thead>
+            <tbody id="rate-history-tbody"></tbody>
+          </table>
+        </div>
+        <p class="text-muted mt-1 mb-0" id="rate-history-msg">Cargando…</p>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="js/settings.js"></script>
+</body>
+</html>

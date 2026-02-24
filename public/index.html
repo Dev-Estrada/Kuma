@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS - Punto de Venta</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <nav class="nav">
+      <div class="nav__brand">POS · Inventario</div>
+      <a class="nav__link active" href="index.html">Inicio</a>
+      <a class="nav__link" href="sales.html">Punto de venta</a>
+      <a class="nav__link" href="inventory.html">Inventario</a>
+      <a class="nav__link" href="sales-history.html">Ventas</a>
+      <a class="nav__link" href="settings.html">Configuración</a>
+    </nav>
+    <main class="main">
+      <h1 class="page-title">Inicio</h1>
+      <div id="low-stock-alert" class="alert alert--warning" style="display:none;">
+        <strong>Reponer inventario:</strong> <span id="low-stock-alert-text"></span>
+        <a href="inventory.html" class="alert__link">Ver inventario</a>
+      </div>
+      <div class="dashboard-grid" id="dashboard-stats">
+        <div class="stat-card">
+          <div class="stat-card__value" id="stat-products">—</div>
+          <div class="stat-card__label">Productos activos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__value" id="stat-low">—</div>
+          <div class="stat-card__label">Bajo stock</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__value" id="stat-rate">—</div>
+          <div class="stat-card__label">Tasa USD → Bs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__value" id="stat-sales">—</div>
+          <div class="stat-card__label">Ventas (hoy)</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card__title">Acciones rápidas</div>
+        <div class="form-row">
+          <a href="sales.html" class="btn btn--primary">Abrir punto de venta</a>
+          <a href="inventory.html" class="btn btn--ghost">Ver inventario</a>
+          <a href="settings.html" class="btn btn--ghost">Cambiar tasa</a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card__title">Últimas ventas <a href="sales-history.html" class="card__link">Ver todas</a></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Fecha</th>
+                <th>Total USD</th>
+                <th>Total Bs</th>
+                <th>Items</th>
+              </tr>
+            </thead>
+            <tbody id="recent-sales"></tbody>
+          </table>
+        </div>
+        <p class="text-muted mt-1 mb-0" id="recent-sales-msg">Cargando…</p>
+      </div>
+      <div class="card" id="low-stock-card" style="display:none;">
+        <div class="card__title">Productos con bajo stock — reponer inventario</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>SKU</th>
+                <th>En stock</th>
+                <th>Mínimo</th>
+                <th>Faltan</th>
+              </tr>
+            </thead>
+            <tbody id="low-stock-tbody"></tbody>
+          </table>
+        </div>
+        <a href="inventory.html" class="btn btn--ghost mt-1">Ir a inventario</a>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
