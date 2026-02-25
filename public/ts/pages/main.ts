@@ -61,29 +61,26 @@ async function loadDashboard() {
     const salesToday = sales.filter((s) => (s.createdAt || '').slice(0, 10) === today);
     (document.getElementById('stat-sales') as HTMLElement).textContent = String(salesToday.length);
 
-    const alertEl = document.getElementById('low-stock-alert')!;
-    const alertText = document.getElementById('low-stock-alert-text')!;
-    const lowStockCard = document.getElementById('low-stock-card')!;
-    const lowStockTbody = document.getElementById('low-stock-tbody')!;
-    if (lowStock.length > 0) {
-      alertEl.style.display = 'block';
-      alertText.textContent = `${lowStock.length} producto(s) con stock por debajo del mínimo.`;
-      lowStockCard.style.display = 'block';
+    const lowStockMsg = document.getElementById('low-stock-msg');
+    const lowStockTbody = document.getElementById('dashboard-modal-low-stock-tbody');
+    if (lowStockMsg) {
+      lowStockMsg.textContent = lowStock.length > 0
+        ? `${lowStock.length} producto(s) con stock por debajo del mínimo.`
+        : 'No hay productos con bajo stock.';
+    }
+    if (lowStockTbody) {
       lowStockTbody.innerHTML = lowStock
         .map(
           (p) =>
             `<tr>
-              <td>${p.name || p.sku}</td>
-              <td>${p.sku}</td>
+              <td>${(p.name || p.sku || '').replace(/</g, '&lt;')}</td>
+              <td>${(p.sku || '').replace(/</g, '&lt;')}</td>
               <td class="stock-low">${p.quantity}</td>
               <td>${p.minimumStock}</td>
               <td class="stock-low">${p.missingUnits ?? (p.minimumStock - p.quantity)}</td>
             </tr>`
         )
         .join('');
-    } else {
-      alertEl.style.display = 'none';
-      lowStockCard.style.display = 'none';
     }
 
     const rateReminder = document.getElementById('rate-reminder-alert');
@@ -116,14 +113,11 @@ async function loadDashboard() {
       }
     }
 
-    const tbody = document.getElementById('recent-sales')!;
-    const msg = document.getElementById('recent-sales-msg')!;
+    const tbody = document.getElementById('dashboard-modal-recent-sales-tbody');
+    const msg = document.getElementById('recent-sales-msg');
     const recent = sales.slice(0, 10);
-    if (recent.length === 0) {
-      msg.textContent = 'No hay ventas recientes.';
-      tbody.innerHTML = '';
-    } else {
-      msg.textContent = '';
+    if (msg) msg.textContent = recent.length === 0 ? 'No hay ventas recientes.' : '';
+    if (tbody) {
       tbody.innerHTML = recent
         .map(
           (s: any) =>
@@ -139,7 +133,8 @@ async function loadDashboard() {
     }
   } catch (e) {
     console.error(e);
-    (document.getElementById('stat-products') as HTMLElement).textContent = '—';
+    const statProducts = document.getElementById('stat-products');
+    if (statProducts) statProducts.textContent = '—';
     const msgEl = document.getElementById('recent-sales-msg');
     if (msgEl) {
       msgEl.textContent = 'Error al cargar datos. ';
@@ -150,12 +145,38 @@ async function loadDashboard() {
       retry.onclick = () => loadDashboard();
       msgEl.appendChild(retry);
     }
+    if (typeof (window as any).showAlert === 'function') {
+      (window as any).showAlert({ title: 'Error', message: 'No se pudieron cargar los datos del inicio.', type: 'error' });
+    }
+  }
+}
+
+function setupDashboardModals() {
+  const btnRecent = document.getElementById('btn-show-recent-sales');
+  const modalRecent = document.getElementById('dashboard-modal-recent-sales');
+  const btnLow = document.getElementById('btn-show-low-stock');
+  const modalLow = document.getElementById('dashboard-modal-low-stock');
+  const btnCloseRecent = document.getElementById('btn-close-recent-sales');
+  const btnCloseLow = document.getElementById('btn-close-low-stock');
+
+  if (btnRecent && modalRecent) {
+    btnRecent.addEventListener('click', () => { modalRecent.style.display = 'flex'; });
+  }
+  if (btnCloseRecent && modalRecent) {
+    btnCloseRecent.addEventListener('click', () => { modalRecent.style.display = 'none'; });
+  }
+  if (btnLow && modalLow) {
+    btnLow.addEventListener('click', () => { modalLow.style.display = 'flex'; });
+  }
+  if (btnCloseLow && modalLow) {
+    btnCloseLow.addEventListener('click', () => { modalLow.style.display = 'none'; });
   }
 }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
+setupDashboardModals();
 loadDashboard();
 export {};

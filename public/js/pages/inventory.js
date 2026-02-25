@@ -1,6 +1,8 @@
 const API = '';
+const ROWS_PER_PAGE = 7;
 let allCategories = [];
 let currentProducts = [];
+let currentProductsPage = 1;
 let editingProduct = null;
 async function getJson(url) {
     const res = await fetch(`${API}${url}`);
@@ -35,36 +37,65 @@ function stockClass(p) {
         return 'stock-medium';
     return 'stock-ok';
 }
-function renderTable(products) {
+function escapeHtml(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+function renderPagination(containerId, totalItems, currentPage, onPageChange) {
+    const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (totalItems === 0) { el.innerHTML = ''; return; }
+    const start = totalItems === 0 ? 0 : (currentPage - 1) * ROWS_PER_PAGE + 1;
+    const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+    el.innerHTML = '<span class="table-pagination__range">Mostrando ' + start + '-' + end + ' de ' + totalItems + '</span><div class="table-pagination__nav"><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-prev"' + (currentPage <= 1 ? ' disabled' : '') + '>Anterior</button><span>Página ' + currentPage + ' de ' + totalPages + '</span><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-next"' + (currentPage >= totalPages ? ' disabled' : '') + '>Siguiente</button></div>';
+    document.getElementById(containerId + '-prev')?.addEventListener('click', function () { if (currentPage > 1) onPageChange(currentPage - 1); });
+    document.getElementById(containerId + '-next')?.addEventListener('click', function () { if (currentPage < totalPages) onPageChange(currentPage + 1); });
+}
+function renderTable(products, page) {
     const tbody = document.getElementById('products-tbody');
-    tbody.innerHTML = products
-        .map((p) => `<tr>
-          <td><button type="button" class="btn-favorite ${p.isFavorite ? 'btn-favorite--on' : ''}" data-id="${p.id}" data-fav="${p.isFavorite ? '1' : '0'}" title="${p.isFavorite ? 'Quitar de favoritos' : 'Marcar favorito'}">★</button></td>
-          <td>${p.id}</td>
-          <td>${(p.sku || '').replace(/</g, '&lt;')}</td>
-          <td>${(p.barcode || '—').replace(/</g, '&lt;')}</td>
-          <td>${(p.name || '').replace(/</g, '&lt;')}</td>
-          <td>$${(p.listPrice ?? 0).toFixed(2)}</td>
-          <td>$${(p.costPrice ?? 0).toFixed(2)}</td>
-          <td class="${stockClass(p)}">${p.quantity ?? 0}</td>
-          <td>${p.minimumStock ?? 0}</td>
-          <td>${(p.categoryName || '—').replace(/</g, '&lt;')}</td>
+    const totalPages = Math.ceil(products.length / ROWS_PER_PAGE) || 1;
+    const p = Math.max(1, Math.min(page || 1, totalPages));
+    const slice = products.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
+    tbody.innerHTML = slice
+        .map((prod) => `<tr>
+          <td><button type="button" class="btn-favorite ${prod.isFavorite ? 'btn-favorite--on' : ''}" data-id="${prod.id}" data-fav="${prod.isFavorite ? '1' : '0'}" title="${prod.isFavorite ? 'Quitar de favoritos' : 'Marcar favorito'}">★</button></td>
+          <td>${prod.id ?? ''}</td>
+          <td>${escapeHtml(prod.sku)}</td>
+          <td>${escapeHtml(prod.barcode ?? '')}</td>
+          <td>${escapeHtml(prod.name ?? '')}</td>
+          <td>$${(prod.listPrice ?? 0).toFixed(2)}</td>
+          <td>$${(prod.costPrice ?? 0).toFixed(2)}</td>
+          <td class="${stockClass(prod)}">${prod.quantity ?? 0}</td>
+          <td>${prod.minimumStock ?? 0}</td>
+          <td>${escapeHtml(prod.categoryName ?? '')}</td>
           <td>
-            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-qty="${p.quantity ?? 0}" title="Ajustar cantidad en stock">Ajustar</button>
-            <button type="button" class="btn btn--sm btn--ghost edit-product" data-id="${p.id}">Editar</button>
-            <button type="button" class="btn btn--sm btn--danger delete-product" data-id="${p.id}">Eliminar</button>
+            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${prod.id}" data-name="${escapeHtml(prod.name || '').replace(/"/g, '&quot;')}" data-qty="${prod.quantity ?? 0}">Ajustar</button>
+            <button type="button" class="btn btn--sm btn--ghost edit-product" data-id="${prod.id}">Editar</button>
+            <button type="button" class="btn btn--sm btn--danger delete-product" data-id="${prod.id}">Eliminar</button>
           </td>
         </tr>`)
         .join('');
+    renderPagination('products-pagination', products.length, p, function (newPage) {
+        currentProductsPage = newPage;
+        renderTable(currentProducts, newPage);
+    });
 }
 async function loadAndRender() {
-    const q = document.getElementById('search').value.trim();
-    const catId = document.getElementById('category-filter').value;
-    let list = await fetchProducts(q || undefined);
-    if (catId)
-        list = list.filter((p) => String(p.categoryId) === catId);
-    currentProducts = list;
-    renderTable(list);
+    try {
+        const q = document.getElementById('search').value.trim();
+        const catId = document.getElementById('category-filter').value;
+        let list = await fetchProducts(q || undefined);
+        if (catId)
+            list = list.filter((p) => String(p.categoryId) === catId);
+        currentProducts = list;
+        currentProductsPage = 1;
+        renderTable(list, 1);
+    } catch (_) {
+        const tbody = document.getElementById('products-tbody');
+        if (tbody) tbody.innerHTML = '';
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'Error al cargar los productos.', type: 'error' });
+    }
 }
 const modal = document.getElementById('product-modal');
 const form = document.getElementById('product-form');
@@ -72,10 +103,13 @@ const modalTitle = document.getElementById('modal-title');
 const productIdInput = document.getElementById('product-id');
 function openModal(editProduct) {
     editingProduct = editProduct ?? null;
+    const barcodeEl = document.getElementById('barcode');
     if (editProduct) {
         modalTitle.textContent = 'Editar producto';
         productIdInput.value = String(editProduct.id);
         document.getElementById('sku').value = editProduct.sku;
+        if (barcodeEl)
+            barcodeEl.value = editProduct.barcode ?? '';
         document.getElementById('name').value = editProduct.name;
         document.getElementById('listPrice').value = String(editProduct.listPrice ?? 0);
         document.getElementById('costPrice').value = String(editProduct.costPrice ?? 0);
@@ -87,6 +121,8 @@ function openModal(editProduct) {
         modalTitle.textContent = 'Nuevo producto';
         productIdInput.value = '';
         form.reset();
+        if (barcodeEl)
+            barcodeEl.value = '';
         document.getElementById('quantity').value = '0';
         document.getElementById('minimumStock').value = '5';
         document.getElementById('costPrice').value = '0';
@@ -99,8 +135,10 @@ function closeModal() {
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = productIdInput.value ? Number(productIdInput.value) : null;
+    const barcodeInput = document.getElementById('barcode')?.value?.trim() ?? '';
     const formData = {
         sku: document.getElementById('sku').value.trim(),
+        barcode: barcodeInput || undefined,
         name: document.getElementById('name').value.trim(),
         listPrice: parseFloat(document.getElementById('listPrice').value) || 0,
         costPrice: parseFloat(document.getElementById('costPrice').value) || 0,
@@ -112,26 +150,40 @@ form.addEventListener('submit', async (e) => {
         ? { ...editingProduct, ...formData }
         : { ...formData, sku: formData.sku, name: formData.name };
     try {
+        let res;
         if (id) {
-            await fetch(`${API}/api/products/${id}`, {
+            res = await fetch(`${API}/api/products/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
         }
         else {
-            await fetch(`${API}/api/products`, {
+            res = await fetch(`${API}/api/products`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
         }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const msg = data.error || 'Error al guardar.';
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: msg, type: 'error' });
+            else alert(msg);
+            return;
+        }
         closeModal();
         editingProduct = null;
         loadAndRender();
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Listo', message: 'Producto guardado correctamente.', type: 'success' });
+        else alert('Producto guardado correctamente.');
     }
     catch (err) {
-        alert('Error al guardar');
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'Error de conexión al guardar.', type: 'error' });
+        else alert('Error de conexión.');
     }
 });
 document.getElementById('btn-cancel-product')?.addEventListener('click', closeModal);
@@ -144,17 +196,20 @@ document.getElementById('btn-export-csv')?.addEventListener('click', async (e) =
     e.preventDefault();
     try {
         const res = await fetch(`${API}/api/products/export`);
-        if (!res.ok)
-            throw new Error('Export failed');
+        if (!res.ok) throw new Error('Export failed');
         const blob = await res.blob();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'inventario.csv';
         a.click();
         URL.revokeObjectURL(a.href);
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Listo', message: 'Exportación completada. Se descargó inventario.csv', type: 'success' });
     }
     catch (_) {
-        alert('Error al exportar. Comprueba la conexión.');
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'Error al exportar. Comprueba la conexión.', type: 'error' });
+        else alert('Error al exportar.');
     }
 });
 document.getElementById('products-tbody')?.addEventListener('click', async (e) => {
@@ -168,15 +223,25 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
         const b = (btn || t);
         const isFav = b.getAttribute('data-fav') !== '1';
         try {
-            await fetch(`${API}/api/products/${id}/favorite`, {
+            const res = await fetch(`${API}/api/products/${id}/favorite`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ isFavorite: isFav }),
             });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                if (typeof window.showAlert === 'function')
+                    window.showAlert({ title: 'Error', message: data.error || 'Error al actualizar favorito.', type: 'error' });
+                return;
+            }
             loadAndRender();
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Listo', message: isFav ? 'Añadido a favoritos.' : 'Quitado de favoritos.', type: 'success' });
         }
         catch (_) {
-            alert('Error al actualizar favorito.');
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: 'Error de conexión al actualizar favorito.', type: 'error' });
+            else alert('Error al actualizar favorito.');
         }
         return;
     }
@@ -192,15 +257,38 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
         return;
     }
     if (t.classList.contains('edit-product')) {
-        const res = await fetch(`${API}/api/products/${id}`);
-        const p = await res.json();
-        openModal(p);
+        try {
+            const res = await fetch(`${API}/api/products/${id}`);
+            const p = await res.json();
+            if (!res.ok) {
+                if (typeof window.showAlert === 'function')
+                    window.showAlert({ title: 'Error', message: p.error || 'Error al cargar el producto.', type: 'error' });
+                return;
+            }
+            openModal(p);
+        } catch (_) {
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
+        }
     }
     if (t.classList.contains('delete-product')) {
         if (!confirm('¿Eliminar este producto?'))
             return;
-        await fetch(`${API}/api/products/${id}`, { method: 'DELETE' });
-        loadAndRender();
+        try {
+            const res = await fetch(`${API}/api/products/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                if (typeof window.showAlert === 'function')
+                    window.showAlert({ title: 'Error', message: data.error || 'Error al eliminar.', type: 'error' });
+                return;
+            }
+            loadAndRender();
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Listo', message: 'Producto eliminado correctamente.', type: 'success' });
+        } catch (_) {
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: 'Error de conexión al eliminar.', type: 'error' });
+        }
     }
 });
 document.getElementById('btn-adjust-cancel')?.addEventListener('click', () => {
@@ -215,7 +303,10 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
     const delta = parseInt(document.getElementById('adjust-delta').value, 10);
     const reason = document.getElementById('adjust-reason').value.trim();
     if (isNaN(delta) || delta === 0) {
-        alert('Indica un cambio de cantidad (positivo o negativo).');
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Aviso', message: 'Indica un cambio de cantidad (positivo o negativo).', type: 'warning' });
+        else
+            alert('Indica un cambio de cantidad (positivo o negativo).');
         return;
     }
     try {
@@ -226,21 +317,30 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
         });
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
-            alert(data.error || 'Error al ajustar');
+            const msg = data.error || 'Error al ajustar.';
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: msg, type: 'error' });
+            else alert(msg);
             return;
         }
         document.getElementById('adjust-modal').style.display = 'none';
         loadAndRender();
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Listo', message: 'Stock ajustado correctamente.', type: 'success' });
     }
     catch (_) {
-        alert('Error de conexión.');
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
+        else alert('Error de conexión.');
     }
 });
 document.getElementById('search')?.addEventListener('input', () => loadAndRender());
 document.getElementById('category-filter')?.addEventListener('change', () => loadAndRender());
 document.getElementById('btn-low-stock')?.addEventListener('click', async () => {
     const list = await getJson('/api/products/low-stock');
-    renderTable(list);
+    currentProducts = list;
+    currentProductsPage = 1;
+    renderTable(list, 1);
 });
 async function loadLowStockBanner() {
     try {

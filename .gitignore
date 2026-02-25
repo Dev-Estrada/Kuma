@@ -1,3 +1,6 @@
 node_modules/
 dist/
 inventory.db
+inventory.db.bak
+inventory.db.restore
+backups/

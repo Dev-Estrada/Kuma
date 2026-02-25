@@ -39,36 +39,39 @@ export class ReportsRepository {
 
   async getSalesByDateRange(fromDate: string, toDate: string): Promise<SalesPeriodRow> {
     const db = await getDb();
-    const from = `${fromDate} 00:00:00`;
-    const to = `${toDate} 23:59:59`;
     const row = await db.get<SalesPeriodRow>(
       `SELECT COALESCE(SUM(totalUsd), 0) AS totalUsd, COALESCE(SUM(totalBs), 0) AS totalBs, COUNT(*) AS count
-       FROM sales WHERE status = 'completada' AND createdAt >= ? AND createdAt <= ?`,
-      from,
-      to
+       FROM sales
+       WHERE status = 'completada'
+         AND DATE(createdAt) >= DATE(?)
+         AND DATE(createdAt) <= DATE(?)`,
+      fromDate,
+      toDate
     );
     return row || { totalUsd: 0, totalBs: 0, count: 0 };
   }
 
   async getProfitByDateRange(fromDate: string, toDate: string): Promise<ProfitPeriodRow> {
     const db = await getDb();
-    const from = `${fromDate} 00:00:00`;
-    const to = `${toDate} 23:59:59`;
     const summary = await db.get<{ totalUsd: number; totalBs: number; count: number }>(
       `SELECT COALESCE(SUM(s.totalUsd), 0) AS totalUsd, COALESCE(SUM(s.totalBs), 0) AS totalBs, COUNT(DISTINCT s.id) AS count
        FROM sales s
-       WHERE s.status = 'completada' AND s.createdAt >= ? AND s.createdAt <= ?`,
-      from,
-      to
+       WHERE s.status = 'completada'
+         AND DATE(s.createdAt) >= DATE(?)
+         AND DATE(s.createdAt) <= DATE(?)`,
+      fromDate,
+      toDate
     );
     const costRow = await db.get<{ totalCostUsd: number }>(
-      `SELECT COALESCE(SUM(si.quantity * p.costPrice), 0) AS totalCostUsd
+      `SELECT COALESCE(SUM(si.quantity * COALESCE(p.costPrice, 0)), 0) AS totalCostUsd
        FROM sale_items si
        JOIN sales s ON s.id = si.saleId
        JOIN products p ON p.id = si.productId
-       WHERE s.status = 'completada' AND s.createdAt >= ? AND s.createdAt <= ?`,
-      from,
-      to
+       WHERE s.status = 'completada'
+         AND DATE(s.createdAt) >= DATE(?)
+         AND DATE(s.createdAt) <= DATE(?)`,
+      fromDate,
+      toDate
     );
     const totalUsd = summary?.totalUsd ?? 0;
     const totalBs = summary?.totalBs ?? 0;

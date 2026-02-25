@@ -36,7 +36,38 @@ export class ProductRepository {
     return row || null;
   }
 
-  async getByBarcode(barcode: string): Promise<Product | null> {
+  async getBySku(sku: string, excludeId?: number): Promise<Product | null> {
+    if (!sku || !sku.trim()) return null;
+    const db = await getDb();
+    const row = await db.get<Product>(
+      `SELECT p.*, c.name AS categoryName
+       FROM products p
+       LEFT JOIN categories c ON p.categoryId = c.id
+       WHERE p.sku = ? AND (? IS NULL OR p.id != ?)`,
+      sku.trim(),
+      excludeId ?? null,
+      excludeId ?? null
+    );
+    return row || null;
+  }
+
+  async getByBarcode(barcode: string, excludeId?: number): Promise<Product | null> {
+    if (!barcode || !barcode.trim()) return null;
+    const db = await getDb();
+    const row = await db.get<Product>(
+      `SELECT p.*, c.name AS categoryName
+       FROM products p
+       LEFT JOIN categories c ON p.categoryId = c.id
+       WHERE p.barcode = ? AND (? IS NULL OR p.id != ?)`,
+      barcode.trim(),
+      excludeId ?? null,
+      excludeId ?? null
+    );
+    return row || null;
+  }
+
+  /** Barcode lookup for POS (active products only); no excludeId. */
+  async getByBarcodeActive(barcode: string): Promise<Product | null> {
     if (!barcode || !barcode.trim()) return null;
     const db = await getDb();
     const row = await db.get<Product>(

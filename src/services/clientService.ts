@@ -18,11 +18,21 @@ export class ClientService {
 
   async create(client: Client): Promise<number> {
     if (!client.name || !client.name.trim()) throw new Error('El nombre es obligatorio');
+    const doc = (client.document && client.document.trim()) || '';
+    if (doc) {
+      const existing = await this.repo.getByDocument(doc);
+      if (existing) throw new Error('Ya existe un cliente con esa cédula/documento.');
+    }
     return this.repo.create(client);
   }
 
   async update(id: number, client: Client): Promise<void> {
     if (!client.name || !client.name.trim()) throw new Error('El nombre es obligatorio');
+    const doc = (client.document && client.document.trim()) || '';
+    if (doc) {
+      const existing = await this.repo.getByDocument(doc, id);
+      if (existing) throw new Error('Ya existe otro cliente con esa cédula/documento.');
+    }
     await this.repo.update(id, client);
   }
 

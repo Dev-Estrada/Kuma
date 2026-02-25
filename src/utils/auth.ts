@@ -16,10 +16,18 @@ export function hashPassword(plainPassword: string): string {
 }
 
 export function verifyPassword(plainPassword: string, storedHash: string): boolean {
+  if (typeof storedHash !== 'string' || !storedHash) return false;
   const [salt, hash] = storedHash.split(':');
   if (!salt || !hash) return false;
-  const computed = crypto.pbkdf2Sync(plainPassword, salt, PBKDF2_ITERATIONS, KEY_LEN, DIGEST).toString('hex');
-  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(computed, 'hex'));
+  try {
+    const computed = crypto.pbkdf2Sync(plainPassword, salt, PBKDF2_ITERATIONS, KEY_LEN, DIGEST).toString('hex');
+    const hashBuf = Buffer.from(hash, 'hex');
+    const computedBuf = Buffer.from(computed, 'hex');
+    if (hashBuf.length !== computedBuf.length) return false;
+    return crypto.timingSafeEqual(hashBuf, computedBuf);
+  } catch {
+    return false;
+  }
 }
 
 export interface JwtPayload {

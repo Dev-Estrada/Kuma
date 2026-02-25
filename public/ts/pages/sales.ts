@@ -175,13 +175,22 @@ function clearCart() {
 }
 
 function showMsg(text: string, isError: boolean) {
-  const el = document.getElementById('sale-msg')!;
-  el.textContent = text;
-  el.className = isError ? 'msg msg--error' : 'msg msg--success';
-  el.style.display = 'block';
-  setTimeout(() => {
-    el.style.display = 'none';
-  }, 4000);
+  const showAlert = (window as any).showAlert;
+  if (typeof showAlert === 'function') {
+    showAlert({
+      title: isError ? 'Aviso' : 'Listo',
+      message: text,
+      type: isError ? 'error' : 'success',
+    });
+    return;
+  }
+  const el = document.getElementById('sale-msg');
+  if (el) {
+    el.textContent = text;
+    el.className = isError ? 'msg msg--error' : 'msg msg--success';
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
 }
 
 async function completeSale(retries = 1) {

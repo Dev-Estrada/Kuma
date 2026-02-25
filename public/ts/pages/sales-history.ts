@@ -199,7 +199,8 @@ document.getElementById('sales-tbody')?.addEventListener('click', async (e) => {
     const sale = await getJson<SaleDetail>(`/api/sales/${id}`);
     openDetailModal(sale);
   } catch (_) {
-    alert('Error al cargar el detalle de la venta.');
+    if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: 'Error al cargar el detalle de la venta.', type: 'error' });
+    else alert('Error al cargar el detalle de la venta.');
   }
 });
 

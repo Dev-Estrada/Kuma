@@ -13,6 +13,19 @@ export class CategoryRepository {
     return row || null;
   }
 
+  async getByName(name: string, excludeId?: number): Promise<Category | null> {
+    const n = typeof name === 'string' ? name.trim() : '';
+    if (!n) return null;
+    const db = await getDb();
+    const row = await db.get<Category>(
+      'SELECT * FROM categories WHERE name = ? AND (? IS NULL OR id != ?)',
+      n,
+      excludeId ?? null,
+      excludeId ?? null
+    );
+    return row || null;
+  }
+
   async create(cat: Category): Promise<number> {
     const db = await getDb();
     const result = await db.run(

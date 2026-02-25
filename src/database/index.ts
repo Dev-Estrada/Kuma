@@ -111,7 +111,7 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
           value TEXT NOT NULL,
           updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       );
-      INSERT OR IGNORE INTO settings (key, value) VALUES ('exchange_rate', '36.50');
+      INSERT OR IGNORE INTO settings (key, value) VALUES ('exchange_rate', '00.00');
 
       CREATE TABLE IF NOT EXISTS exchange_rate_history (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,7 +228,7 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
       await db.run(
         'INSERT INTO exchange_rate_history (rate, notes, createdAt) VALUES (?, ?, ?)',
         36.5,
-        'Tasa inicial',
+        'Tasa Demostracion',
         getVenezuelaNow()
       );
     }
@@ -261,26 +261,61 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
     await addColumnIfMissing('ALTER TABLE sales ADD COLUMN voidedAt TEXT');
     await addColumnIfMissing('ALTER TABLE sales ADD COLUMN voidReason TEXT');
     await addColumnIfMissing('ALTER TABLE sales ADD COLUMN clientId INTEGER');
-    await db.run('UPDATE sales SET status = \'completada\' WHERE status IS NULL').catch(() => {});
+    try {
+      await db.run('UPDATE sales SET status = \'completada\' WHERE status IS NULL');
+    } catch (_) {
+      // La tabla sales puede ser de una versión antigua sin columna status; la migración ADD COLUMN ya la añadió o se ignoró
+    }
 
     try { await db.run('CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status)'); } catch (_) {}
     try { await db.run('CREATE INDEX IF NOT EXISTS idx_sales_client ON sales(clientId)'); } catch (_) {}
 
-    // Usuario administrador por defecto si no existe ninguno (contraseña: Admin123!)
-    const userCount = await db.get<{ c: number }>('SELECT COUNT(*) as c FROM users');
-    if (userCount && userCount.c === 0) {
+    // Usuario administrador por defecto si no existe ningún admin activo (contraseña: Admin123!)
+    const adminCount = await db.get<{ c: number }>("SELECT COUNT(*) as c FROM users WHERE role = 'admin' AND isActive = 1");
+    if (adminCount && adminCount.c === 0) {
       const adminHash = hashPassword('Admin123!');
-      await db.run(
-        'INSERT INTO users (username, passwordHash, displayName, role) VALUES (?, ?, ?, ?)',
-        'admin',
-        adminHash,
-        'Administrador',
-        'admin'
-      );
+      const existingAdmin = await db.get<{ id: number }>('SELECT id FROM users WHERE username = ?', 'admin');
+      if (existingAdmin) {
+        await db.run(
+          'UPDATE users SET passwordHash = ?, displayName = ?, role = ?, isActive = 1 WHERE username = ?',
+          adminHash,
+          'Administrador',
+          'admin',
+          'admin'
+        );
+      } else {
+        await db.run(
+          'INSERT INTO users (username, passwordHash, displayName, role) VALUES (?, ?, ?, ?)',
+          'admin',
+          adminHash,
+          'Administrador',
+          'admin'
+        );
+      }
     }
   }
   if (!db) throw new Error('Database not initialized');
   return db;
+}
+
+/** Cierra la conexión a la base de datos. Tras esto, la siguiente llamada a getDb() la reabrirá. */
+export async function closeDb(): Promise<void> {
+  if (db) {
+    await db.close();
+    db = null;
+  }
+}
+
+/** Cierra la conexión y elimina el archivo inventory.db. La siguiente llamada a getDb() creará una base de datos nueva. */
+export async function deleteCurrentDatabase(): Promise<void> {
+  await closeDb();
+  const cwd = process.cwd();
+  const dbPath = path.resolve(cwd, DB_FILENAME.replace(/^\.\//, ''));
+  try {
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+  } catch (_) {
+    // ignorar si no se puede eliminar
+  }
 }
 
 export async function runTransaction<T>(

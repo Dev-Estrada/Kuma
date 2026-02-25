@@ -8,6 +8,7 @@ interface Category {
 interface Product {
   id?: number;
   sku: string;
+  barcode?: string;
   name: string;
   quantity?: number;
   minimumStock?: number;
@@ -57,6 +58,10 @@ function stockClass(p: Product): string {
   return 'stock-ok';
 }
 
+function escapeHtml(s: string): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+
 function renderTable(products: Product[]) {
   const tbody = document.getElementById('products-tbody')!;
   tbody.innerHTML = products
@@ -64,14 +69,17 @@ function renderTable(products: Product[]) {
       (p) =>
         `<tr>
           <td><button type="button" class="btn-favorite ${p.isFavorite ? 'btn-favorite--on' : ''}" data-id="${p.id}" data-fav="${p.isFavorite ? '1' : '0'}" title="${p.isFavorite ? 'Quitar de favoritos' : 'Marcar favorito'}">★</button></td>
-          <td>${p.sku}</td>
-          <td>${p.name}</td>
+          <td>${p.id ?? ''}</td>
+          <td>${escapeHtml(p.sku)}</td>
+          <td>${escapeHtml(p.barcode ?? '')}</td>
+          <td>${escapeHtml(p.name ?? '')}</td>
           <td>$${(p.listPrice ?? 0).toFixed(2)}</td>
+          <td>$${(p.costPrice ?? 0).toFixed(2)}</td>
           <td class="${stockClass(p)}">${p.quantity ?? 0}</td>
           <td>${p.minimumStock ?? 0}</td>
-          <td>${p.categoryName ?? ''}</td>
+          <td>${escapeHtml(p.categoryName ?? '')}</td>
           <td>
-            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-qty="${p.quantity ?? 0}">Ajustar</button>
+            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${p.id}" data-name="${escapeHtml(p.name || '').replace(/"/g, '&quot;')}" data-qty="${p.quantity ?? 0}">Ajustar</button>
             <button type="button" class="btn btn--sm btn--ghost edit-product" data-id="${p.id}">Editar</button>
             <button type="button" class="btn btn--sm btn--danger delete-product" data-id="${p.id}">Eliminar</button>
           </td>
@@ -96,10 +104,12 @@ const productIdInput = document.getElementById('product-id') as HTMLInputElement
 
 function openModal(editProduct?: Product) {
   editingProduct = editProduct ?? null;
+  const barcodeEl = document.getElementById('barcode') as HTMLInputElement;
   if (editProduct) {
     modalTitle.textContent = 'Editar producto';
     productIdInput.value = String(editProduct.id);
     (document.getElementById('sku') as HTMLInputElement).value = editProduct.sku;
+    if (barcodeEl) barcodeEl.value = editProduct.barcode ?? '';
     (document.getElementById('name') as HTMLInputElement).value = editProduct.name;
     (document.getElementById('listPrice') as HTMLInputElement).value = String(editProduct.listPrice ?? 0);
     (document.getElementById('costPrice') as HTMLInputElement).value = String(editProduct.costPrice ?? 0);
@@ -110,6 +120,7 @@ function openModal(editProduct?: Product) {
     modalTitle.textContent = 'Nuevo producto';
     productIdInput.value = '';
     form.reset();
+    if (barcodeEl) barcodeEl.value = '';
     (document.getElementById('quantity') as HTMLInputElement).value = '0';
     (document.getElementById('minimumStock') as HTMLInputElement).value = '5';
     (document.getElementById('costPrice') as HTMLInputElement).value = '0';
@@ -124,8 +135,10 @@ function closeModal() {
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = productIdInput.value ? Number(productIdInput.value) : null;
+  const barcodeInput = (document.getElementById('barcode') as HTMLInputElement)?.value?.trim() ?? '';
   const formData: Partial<Product> = {
     sku: (document.getElementById('sku') as HTMLInputElement).value.trim(),
+    barcode: barcodeInput || undefined,
     name: (document.getElementById('name') as HTMLInputElement).value.trim(),
     listPrice: parseFloat((document.getElementById('listPrice') as HTMLInputElement).value) || 0,
     costPrice: parseFloat((document.getElementById('costPrice') as HTMLInputElement).value) || 0,
@@ -154,7 +167,8 @@ form.addEventListener('submit', async (e) => {
     editingProduct = null;
     loadAndRender();
   } catch (err) {
-    alert('Error al guardar');
+    if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: 'Error al guardar.', type: 'error' });
+    else alert('Error al guardar');
   }
 });
 
@@ -177,7 +191,8 @@ document.getElementById('btn-export-csv')?.addEventListener('click', async (e) =
     a.click();
     URL.revokeObjectURL(a.href);
   } catch (_) {
-    alert('Error al exportar. Comprueba la conexión.');
+    if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: 'Error al exportar. Comprueba la conexión.', type: 'error' });
+    else alert('Error al exportar. Comprueba la conexión.');
   }
 });
 
@@ -198,7 +213,8 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
       });
       loadAndRender();
     } catch (_) {
-      alert('Error al actualizar favorito.');
+      if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: 'Error al actualizar favorito.', type: 'error' });
+      else alert('Error al actualizar favorito.');
     }
     return;
   }
@@ -236,7 +252,8 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
   const delta = parseInt((document.getElementById('adjust-delta') as HTMLInputElement).value, 10);
   const reason = (document.getElementById('adjust-reason') as HTMLInputElement).value.trim();
   if (isNaN(delta) || delta === 0) {
-    alert('Indica un cambio de cantidad (positivo o negativo).');
+    if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Aviso', message: 'Indica un cambio de cantidad (positivo o negativo).', type: 'warning' });
+    else alert('Indica un cambio de cantidad (positivo o negativo).');
     return;
   }
   try {
@@ -247,13 +264,16 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert((data as { error?: string }).error || 'Error al ajustar');
+      const msg = (data as { error?: string }).error || 'Error al ajustar';
+      if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: msg, type: 'error' });
+      else alert(msg);
       return;
     }
     (document.getElementById('adjust-modal') as HTMLElement).style.display = 'none';
     loadAndRender();
   } catch (_) {
-    alert('Error de conexión.');
+    if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
+    else alert('Error de conexión.');
   }
 });
 

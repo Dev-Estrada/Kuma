@@ -9,6 +9,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build:frontend": "tsc -p public && sass public/scss/styles.scss public/css/styles.css --no-source-map",
     "migrate:sales": "node scripts/migrate-sales.js",
+    "create-demo-db": "node scripts/create-demo-db.js",
     "prepare": "npm run build"
   },
   "keywords": [],

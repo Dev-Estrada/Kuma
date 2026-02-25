@@ -5,7 +5,7 @@
 (function () {
   const TOKEN_KEY = 'kuma_token';
   const USER_KEY = 'kuma_user';
-  const isLoginPage = window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('/login');
+  const isLoginPage = window.location.pathname.endsWith('login.html') || window.location.pathname === '/login.html' || window.location.pathname.endsWith('/login');
 
   function getToken() {
     return localStorage.getItem(TOKEN_KEY);
@@ -13,7 +13,7 @@
 
   function redirectToLogin() {
     const here = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.replace('login.html?redirect=' + here);
+    window.location.replace('/login.html?redirect=' + here);
   }
 
   if (!isLoginPage) {
@@ -77,6 +77,6 @@
   window.logout = function () {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    window.location.replace('login.html');
+    window.location.replace('/login.html');
   };
 })();

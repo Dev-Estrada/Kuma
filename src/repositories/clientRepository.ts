@@ -13,6 +13,20 @@ export class ClientRepository {
     return row || null;
   }
 
+  /** Busca cliente por documento/cédula (solo si document no está vacío). excludeId para no chocar con el mismo en edición. */
+  async getByDocument(document: string, excludeId?: number): Promise<Client | null> {
+    const doc = typeof document === 'string' ? document.trim() : '';
+    if (!doc) return null;
+    const db = await getDb();
+    const row = await db.get<Client>(
+      'SELECT * FROM clients WHERE document = ? AND (? IS NULL OR id != ?)',
+      doc,
+      excludeId ?? null,
+      excludeId ?? null
+    );
+    return row || null;
+  }
+
   async search(term: string): Promise<Client[]> {
     if (!term.trim()) return this.getAll();
     const db = await getDb();

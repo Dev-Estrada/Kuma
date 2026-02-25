@@ -1,7 +1,4 @@
 const API = '';
-let dashboardSales = [];
-let dashboardLowStock = [];
-
 async function getJson(url) {
     const res = await fetch(`${API}${url}`);
     if (!res.ok)
@@ -48,26 +45,32 @@ async function loadDashboard() {
             getJson('/api/products/expiring?days=30').catch(() => []),
         ]);
         const activeCount = products.length;
-        const statProducts = document.getElementById('stat-products');
-        const statLow = document.getElementById('stat-low');
-        const statRate = document.getElementById('stat-rate');
-        const statSales = document.getElementById('stat-sales');
-        if (statProducts) statProducts.textContent = String(activeCount);
-        if (statLow) statLow.textContent = String((lowStock || []).length);
-        if (statRate) statRate.textContent = String(rateRes?.exchangeRate ?? '—');
+        document.getElementById('stat-products').textContent = String(activeCount);
+        document.getElementById('stat-low').textContent = String(lowStock.length);
+        document.getElementById('stat-rate').textContent = String(rateRes.exchangeRate);
         const today = todayStr();
-        const salesToday = (sales || []).filter((s) => (s.createdAt || '').slice(0, 10) === today);
-        if (statSales) statSales.textContent = String(salesToday.length);
-        dashboardSales = sales || [];
-        dashboardLowStock = lowStock || [];
+        const salesToday = sales.filter((s) => (s.createdAt || '').slice(0, 10) === today);
+        document.getElementById('stat-sales').textContent = String(salesToday.length);
         const lowStockMsg = document.getElementById('low-stock-msg');
+        const lowStockTbody = document.getElementById('dashboard-modal-low-stock-tbody');
         if (lowStockMsg) {
             lowStockMsg.textContent = lowStock.length > 0
-                ? `${lowStock.length} producto(s) con bajo stock.`
-                : 'Ningún producto con bajo stock.';
+                ? `${lowStock.length} producto(s) con stock por debajo del mínimo.`
+                : 'No hay productos con bajo stock.';
+        }
+        if (lowStockTbody) {
+            lowStockTbody.innerHTML = lowStock
+                .map((p) => `<tr>
+              <td>${(p.name || p.sku || '').replace(/</g, '&lt;')}</td>
+              <td>${(p.sku || '').replace(/</g, '&lt;')}</td>
+              <td class="stock-low">${p.quantity}</td>
+              <td>${p.minimumStock}</td>
+              <td class="stock-low">${p.missingUnits ?? (p.minimumStock - p.quantity)}</td>
+            </tr>`)
+                .join('');
         }
         const rateReminder = document.getElementById('rate-reminder-alert');
-        if (rateReminder != null && lastRate?.lastUpdate) {
+        if (rateReminder && lastRate?.lastUpdate) {
             const last = new Date(lastRate.lastUpdate);
             const days = (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24);
             rateReminder.style.display = days > 7 ? 'block' : 'none';
@@ -92,16 +95,28 @@ async function loadDashboard() {
                 expiringCard.style.display = 'none';
             }
         }
+        const tbody = document.getElementById('dashboard-modal-recent-sales-tbody');
         const msg = document.getElementById('recent-sales-msg');
-        if (msg) {
-            const total = (sales || []).length;
-            msg.textContent = total === 0 ? 'No hay ventas recientes.' : `${total} venta(s) reciente(s).`;
+        const recent = sales.slice(0, 10);
+        if (msg)
+            msg.textContent = recent.length === 0 ? 'No hay ventas recientes.' : '';
+        if (tbody) {
+            tbody.innerHTML = recent
+                .map((s) => `<tr>
+              <td>${s.id}</td>
+              <td>${formatDate(s.createdAt || '')}</td>
+              <td>$${Number(s.totalUsd).toFixed(2)}</td>
+              <td>Bs ${Number(s.totalBs).toFixed(2)}</td>
+              <td>${s.itemCount ?? '-'}</td>
+            </tr>`)
+                .join('');
         }
     }
     catch (e) {
         console.error(e);
-        const statProductsEl = document.getElementById('stat-products');
-        if (statProductsEl) statProductsEl.textContent = '—';
+        const statProducts = document.getElementById('stat-products');
+        if (statProducts)
+            statProducts.textContent = '—';
         const msgEl = document.getElementById('recent-sales-msg');
         if (msgEl) {
             msgEl.textContent = 'Error al cargar datos. ';
@@ -112,66 +127,34 @@ async function loadDashboard() {
             retry.onclick = () => loadDashboard();
             msgEl.appendChild(retry);
         }
+        if (typeof window.showAlert === 'function') {
+            window.showAlert({ title: 'Error', message: 'No se pudieron cargar los datos del inicio.', type: 'error' });
+        }
     }
 }
-function openRecentSalesModal() {
-    const modal = document.getElementById('dashboard-modal-recent-sales');
-    const tbody = document.getElementById('dashboard-modal-recent-sales-tbody');
-    if (!modal || !tbody) return;
-    const list = dashboardSales.slice(0, 50);
-    tbody.innerHTML = list.length === 0
-        ? '<tr><td colspan="5" class="text-muted">No hay ventas.</td></tr>'
-        : list.map((s) => `<tr>
-              <td>${s.id}</td>
-              <td>${formatDate(s.createdAt || '')}</td>
-              <td>$${Number(s.totalUsd).toFixed(2)}</td>
-              <td>Bs ${Number(s.totalBs).toFixed(2)}</td>
-              <td>${s.itemCount ?? '-'}</td>
-            </tr>`).join('');
-    modal.style.display = 'flex';
+function setupDashboardModals() {
+    const btnRecent = document.getElementById('btn-show-recent-sales');
+    const modalRecent = document.getElementById('dashboard-modal-recent-sales');
+    const btnLow = document.getElementById('btn-show-low-stock');
+    const modalLow = document.getElementById('dashboard-modal-low-stock');
+    const btnCloseRecent = document.getElementById('btn-close-recent-sales');
+    const btnCloseLow = document.getElementById('btn-close-low-stock');
+    if (btnRecent && modalRecent) {
+        btnRecent.addEventListener('click', () => { modalRecent.style.display = 'flex'; });
+    }
+    if (btnCloseRecent && modalRecent) {
+        btnCloseRecent.addEventListener('click', () => { modalRecent.style.display = 'none'; });
+    }
+    if (btnLow && modalLow) {
+        btnLow.addEventListener('click', () => { modalLow.style.display = 'flex'; });
+    }
+    if (btnCloseLow && modalLow) {
+        btnCloseLow.addEventListener('click', () => { modalLow.style.display = 'none'; });
+    }
 }
-
-function closeRecentSalesModal() {
-    const modal = document.getElementById('dashboard-modal-recent-sales');
-    if (modal) modal.style.display = 'none';
-}
-
-function openLowStockModal() {
-    const modal = document.getElementById('dashboard-modal-low-stock');
-    const tbody = document.getElementById('dashboard-modal-low-stock-tbody');
-    if (!modal || !tbody) return;
-    const list = dashboardLowStock;
-    tbody.innerHTML = list.length === 0
-        ? '<tr><td colspan="5" class="text-muted">Ningún producto con bajo stock.</td></tr>'
-        : list.map((p) => `<tr>
-              <td>${(p.name || p.sku || '').replace(/</g, '&lt;')}</td>
-              <td>${(p.sku || '').replace(/</g, '&lt;')}</td>
-              <td class="stock-low">${p.quantity}</td>
-              <td>${p.minimumStock}</td>
-              <td class="stock-low">${p.missingUnits ?? (p.minimumStock - p.quantity)}</td>
-            </tr>`).join('');
-    modal.style.display = 'flex';
-}
-
-function closeLowStockModal() {
-    const modal = document.getElementById('dashboard-modal-low-stock');
-    if (modal) modal.style.display = 'none';
-}
-
-document.getElementById('btn-show-recent-sales')?.addEventListener('click', openRecentSalesModal);
-document.getElementById('btn-close-recent-sales')?.addEventListener('click', closeRecentSalesModal);
-document.getElementById('dashboard-modal-recent-sales')?.addEventListener('click', (e) => {
-    if (e.target.id === 'dashboard-modal-recent-sales') closeRecentSalesModal();
-});
-
-document.getElementById('btn-show-low-stock')?.addEventListener('click', openLowStockModal);
-document.getElementById('btn-close-low-stock')?.addEventListener('click', closeLowStockModal);
-document.getElementById('dashboard-modal-low-stock')?.addEventListener('click', (e) => {
-    if (e.target.id === 'dashboard-modal-low-stock') closeLowStockModal();
-});
-
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => { });
+    navigator.serviceWorker.register('/sw.js').catch(() => { });
 }
+setupDashboardModals();
 loadDashboard();
 export {};

@@ -6,13 +6,17 @@ self.addEventListener('install', (event) => {
       return cache.addAll([
         '/',
         '/index.html',
+        '/login.html',
         '/css/styles.css',
-        '/js/main.js',
-        '/sales.html',
-        '/inventory.html',
-        '/sales-history.html',
-        '/reports.html',
-        '/settings.html',
+        '/js/pages/main.js',
+        '/pages/sales.html',
+        '/pages/inventory.html',
+        '/pages/sales-history.html',
+        '/pages/reports.html',
+        '/pages/settings.html',
+        '/pages/entries.html',
+        '/pages/clients.html',
+        '/pages/admin.html',
       ]).catch(() => {});
     })
   );

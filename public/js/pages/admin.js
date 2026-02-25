@@ -7,10 +7,10 @@
   // Solo administradores pueden estar aquí
   const user = window.getAuthUser && window.getAuthUser();
   if (!user || user.role !== 'admin') {
-    window.location.replace('index.html');
+    window.location.replace('/index.html');
     return;
   }
-  document.querySelector('#nav-auth a[href="admin.html"]')?.classList.add('active');
+  document.querySelector('#nav-auth a[href="/pages/admin.html"]')?.classList.add('active');
 
   function getJson(url) {
     return fetch(API + url).then(function (res) {
@@ -37,17 +37,37 @@
     return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  function renderUsers(list) {
+  var ROWS_PER_PAGE = 7;
+  var currentUsersPage = 1;
+  var allUsersList = [];
+
+  function renderPagination(containerId, totalItems, currentPage, onPageChange) {
+    var totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
+    var el = document.getElementById(containerId);
+    if (!el) return;
+    if (totalItems === 0) { el.innerHTML = ''; return; }
+    var start = (currentPage - 1) * ROWS_PER_PAGE + 1;
+    var end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+    el.innerHTML = '<span class="table-pagination__range">Mostrando ' + start + '-' + end + ' de ' + totalItems + '</span><div class="table-pagination__nav"><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-prev"' + (currentPage <= 1 ? ' disabled' : '') + '>Anterior</button><span>Página ' + currentPage + ' de ' + totalPages + '</span><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-next"' + (currentPage >= totalPages ? ' disabled' : '') + '>Siguiente</button></div>';
+    document.getElementById(containerId + '-prev')?.addEventListener('click', function () { if (currentPage > 1) onPageChange(currentPage - 1); });
+    document.getElementById(containerId + '-next')?.addEventListener('click', function () { if (currentPage < totalPages) onPageChange(currentPage + 1); });
+  }
+
+  function renderUsers(list, page) {
     const tbody = document.getElementById('users-tbody');
     const msg = document.getElementById('users-msg');
     if (!tbody || !msg) return;
     if (!list.length) {
       tbody.innerHTML = '';
       msg.textContent = 'No hay usuarios.';
+      document.getElementById('users-pagination') && (document.getElementById('users-pagination').innerHTML = '');
       return;
     }
     msg.textContent = list.length + ' usuario(s).';
-    tbody.innerHTML = list
+    var totalPages = Math.ceil(list.length / ROWS_PER_PAGE) || 1;
+    var p = Math.max(1, Math.min(page || 1, totalPages));
+    var slice = list.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
+    tbody.innerHTML = slice
       .map(function (u) {
         return (
           '<tr>' +
@@ -64,11 +84,14 @@
         );
       })
       .join('');
+    renderPagination('users-pagination', list.length, p, function (newPage) {
+      currentUsersPage = newPage;
+      renderUsers(allUsersList, newPage);
+    });
   }
 
   function showError(message) {
-    var root = document.getElementById('alert-modal-root');
-    if (root && window.showAlert) window.showAlert(message, 'error');
+    if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: message, type: 'error' });
     else alert(message);
   }
 
@@ -80,13 +103,16 @@
     tbody.innerHTML = '';
     try {
       const list = await getJson('/api/users');
-      renderUsers(list);
+      allUsersList = list;
+      currentUsersPage = 1;
+      renderUsers(list, 1);
     } catch (e) {
       if (e && e.status === 403) {
-        window.location.replace('index.html');
+        window.location.replace('/index.html');
         return;
       }
       msg.textContent = 'Error al cargar usuarios.';
+      if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error al cargar la lista de usuarios.', type: 'error' });
     }
   }
 
@@ -190,6 +216,7 @@
       }
       closeModal();
       loadUsers();
+      if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: isEdit ? 'Usuario actualizado correctamente.' : 'Usuario creado correctamente.', type: 'success' });
     } catch (err) {
       showError(err.message || 'Error al guardar.');
     }
@@ -212,6 +239,7 @@
         .then(function (res) {
           if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || res.statusText); });
           loadUsers();
+          if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Usuario eliminado correctamente.', type: 'success' });
         })
         .catch(function (err) { showError(err.message || 'Error al eliminar.'); });
     }

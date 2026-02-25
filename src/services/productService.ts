@@ -17,7 +17,7 @@ export class ProductService {
   }
 
   async getByBarcode(barcode: string): Promise<Product | null> {
-    return this.repo.getByBarcode(barcode);
+    return this.repo.getByBarcodeActive(barcode);
   }
 
   /** Búsqueda unificada POS: por ID, código de barras, SKU o nombre */
@@ -31,6 +31,17 @@ export class ProductService {
     }
     if (!prod.sku.trim()) {
       throw new Error('El SKU es obligatorio');
+    }
+    const existingSku = await this.repo.getBySku(prod.sku.trim());
+    if (existingSku) {
+      throw new Error('Ya existe un producto con ese SKU.');
+    }
+    const barcode = (prod.barcode && prod.barcode.trim()) || null;
+    if (barcode) {
+      const existingBarcode = await this.repo.getByBarcode(barcode);
+      if (existingBarcode) {
+        throw new Error('Ya existe un producto con ese código de barras.');
+      }
     }
     if (prod.quantity !== undefined && prod.quantity < 0) {
       throw new Error('La cantidad no puede ser negativa');
@@ -50,6 +61,17 @@ export class ProductService {
     }
     if (!prod.sku.trim()) {
       throw new Error('El SKU es obligatorio');
+    }
+    const existingSku = await this.repo.getBySku(prod.sku.trim(), id);
+    if (existingSku) {
+      throw new Error('Ya existe otro producto con ese SKU.');
+    }
+    const barcode = (prod.barcode && prod.barcode.trim()) || null;
+    if (barcode) {
+      const existingBarcode = await this.repo.getByBarcode(barcode, id);
+      if (existingBarcode) {
+        throw new Error('Ya existe otro producto con ese código de barras.');
+      }
     }
     if (prod.quantity !== undefined && prod.quantity < 0) {
       throw new Error('La cantidad no puede ser negativa');

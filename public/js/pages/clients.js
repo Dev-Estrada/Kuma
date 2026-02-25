@@ -1,5 +1,7 @@
 const API = '';
+const ROWS_PER_PAGE = 7;
 let allClients = [];
+let currentClientsPage = 1;
 
 async function getJson(url) {
   const res = await fetch(`${API}${url}`);
@@ -22,33 +24,40 @@ function escapeHtml(s) {
   return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function renderClients(list) {
+function renderPagination(containerId, totalItems, currentPage, onPageChange) {
+  const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (totalItems === 0) { el.innerHTML = ''; return; }
+  const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
+  const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+  el.innerHTML = '<span class="table-pagination__range">Mostrando ' + start + '-' + end + ' de ' + totalItems + '</span><div class="table-pagination__nav"><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-prev"' + (currentPage <= 1 ? ' disabled' : '') + '>Anterior</button><span>Página ' + currentPage + ' de ' + totalPages + '</span><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-next"' + (currentPage >= totalPages ? ' disabled' : '') + '>Siguiente</button></div>';
+  document.getElementById(containerId + '-prev')?.addEventListener('click', function () { if (currentPage > 1) onPageChange(currentPage - 1); });
+  document.getElementById(containerId + '-next')?.addEventListener('click', function () { if (currentPage < totalPages) onPageChange(currentPage + 1); });
+}
+
+function renderClients(list, page) {
   const tbody = document.getElementById('clients-tbody');
   const msg = document.getElementById('clients-msg');
   if (!list.length) {
     tbody.innerHTML = '';
     msg.textContent = 'No hay clientes. Crea uno con "Nuevo cliente".';
+    document.getElementById('clients-pagination').innerHTML = '';
     return;
   }
-  msg.textContent = `${list.length} cliente(s).`;
-  tbody.innerHTML = list
+  msg.textContent = list.length + ' cliente(s).';
+  const totalPages = Math.ceil(list.length / ROWS_PER_PAGE) || 1;
+  const p = Math.max(1, Math.min(page || 1, totalPages));
+  const slice = list.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
+  tbody.innerHTML = slice
     .map(
-      (c) => `<tr>
-        <td><strong>${c.id}</strong></td>
-        <td>${escapeHtml(c.name)}</td>
-        <td>${escapeHtml(c.document)}</td>
-        <td>${escapeHtml(c.phone)}</td>
-        <td>${escapeHtml(c.email)}</td>
-        <td class="text-muted" style="max-width: 10rem;">${escapeHtml(c.address)}</td>
-        <td class="text-muted" style="max-width: 12rem;">${escapeHtml(c.notes)}</td>
-        <td>${formatDateTime(c.createdAt)}</td>
-        <td>
-          <button type="button" class="btn btn--sm btn--ghost btn-edit-client" data-id="${c.id}">Editar</button>
-          <button type="button" class="btn btn--sm btn--danger btn-delete-client" data-id="${c.id}">Eliminar</button>
-        </td>
-      </tr>`
+      (c) => '<tr><td><strong>' + c.id + '</strong></td><td>' + escapeHtml(c.name) + '</td><td>' + escapeHtml(c.document) + '</td><td>' + escapeHtml(c.phone) + '</td><td>' + escapeHtml(c.email) + '</td><td class="text-muted" style="max-width: 10rem;">' + escapeHtml(c.address) + '</td><td class="text-muted" style="max-width: 12rem;">' + escapeHtml(c.notes) + '</td><td>' + formatDateTime(c.createdAt) + '</td><td><button type="button" class="btn btn--sm btn--ghost btn-edit-client" data-id="' + c.id + '">Editar</button> <button type="button" class="btn btn--sm btn--danger btn-delete-client" data-id="' + c.id + '">Eliminar</button></td></tr>'
     )
     .join('');
+  renderPagination('clients-pagination', list.length, p, function (newPage) {
+    currentClientsPage = newPage;
+    renderClients(allClients, newPage);
+  });
 }
 
 async function loadClients() {
@@ -59,10 +68,12 @@ async function loadClients() {
     } else {
       allClients = await getJson('/api/clients');
     }
-    renderClients(allClients);
+    currentClientsPage = 1;
+    renderClients(allClients, 1);
   } catch (e) {
     document.getElementById('clients-msg').textContent = 'Error al cargar clientes.';
     document.getElementById('clients-tbody').innerHTML = '';
+    if (window.showAlert) window.showAlert({ title: 'Error', message: 'Error al cargar la lista de clientes.', type: 'error' });
   }
 }
 
@@ -102,23 +113,34 @@ document.getElementById('client-form')?.addEventListener('submit', async (e) => 
   };
   if (!payload.name) return;
   try {
+    let res;
     if (id) {
-      await fetch(`${API}/api/clients/${id}`, {
+      res = await fetch(`${API}/api/clients/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
     } else {
-      await fetch(`${API}/api/clients`, {
+      res = await fetch(`${API}/api/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
     }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data.error || 'Error al guardar.';
+      if (window.showAlert) window.showAlert({ title: 'Error', message: msg, type: 'error' });
+      else alert(msg);
+      return;
+    }
     closeModal();
     loadClients();
+    if (window.showAlert) window.showAlert({ title: 'Listo', message: 'Cliente guardado correctamente.', type: 'success' });
+    else alert('Cliente guardado correctamente.');
   } catch (_) {
-    alert('Error al guardar.');
+    if (window.showAlert) window.showAlert({ title: 'Error', message: 'Error de conexión al guardar.', type: 'error' });
+    else alert('Error de conexión.');
   }
 });
 
@@ -138,12 +160,16 @@ document.getElementById('clients-tbody')?.addEventListener('click', async (e) =>
       const res = await fetch(`${API}/api/clients/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || 'Error al eliminar.');
+        const msg = data.error || 'Error al eliminar.';
+        if (window.showAlert) window.showAlert({ title: 'Error', message: msg, type: 'error' });
+        else alert(msg);
         return;
       }
       loadClients();
+      if (window.showAlert) window.showAlert({ title: 'Listo', message: 'Cliente eliminado correctamente.', type: 'success' });
     } catch (_) {
-      alert('Error de conexión.');
+      if (window.showAlert) window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
+      else alert('Error de conexión.');
     }
   }
 });

@@ -16,12 +16,20 @@ export class CategoryService {
     if (!cat.name.trim()) {
       throw new Error('El nombre es obligatorio');
     }
+    const existing = await this.repo.getByName(cat.name.trim());
+    if (existing) {
+      throw new Error('Ya existe una categoría con ese nombre.');
+    }
     return this.repo.create(cat);
   }
 
   async update(id: number, cat: Category): Promise<void> {
     if (!cat.name.trim()) {
       throw new Error('El nombre es obligatorio');
+    }
+    const existing = await this.repo.getByName(cat.name.trim(), id);
+    if (existing) {
+      throw new Error('Ya existe otra categoría con ese nombre.');
     }
     await this.repo.update(id, cat);
   }

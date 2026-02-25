@@ -37,7 +37,8 @@ export class AuthController {
           role: user.role,
         },
       });
-    } catch {
+    } catch (err) {
+      console.error('Login error:', err);
       res.status(500).json({ error: 'Error al iniciar sesión.' });
     }
   }

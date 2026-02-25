@@ -7,9 +7,12 @@
 
   if (!form || !usernameInput || !passwordInput || !errorEl || !btn) return;
 
-  function showError(msg) {
+  function showError(msg, alertType) {
     errorEl.textContent = msg || '';
     errorEl.style.display = msg ? 'block' : 'none';
+    if (msg && typeof window.showAlert === 'function') {
+      window.showAlert({ title: alertType === 'warning' ? 'Aviso' : 'Error', message: msg, type: alertType || 'error' });
+    }
   }
 
   form.addEventListener('submit', async function (e) {
@@ -19,7 +22,7 @@
     const password = passwordInput.value || '';
     showError('');
     if (!username || !password) {
-      showError('Usuario y contraseña son obligatorios.');
+      showError('Usuario y contraseña son obligatorios.', 'warning');
       return;
     }
     btn.disabled = true;
@@ -43,8 +46,8 @@
       localStorage.setItem('kuma_token', data.token);
       localStorage.setItem('kuma_user', JSON.stringify(data.user));
       var redirect = new URLSearchParams(window.location.search).get('redirect') || '';
-      if (!redirect || redirect === '/' || redirect === 'login.html' || redirect.endsWith('/login')) {
-        redirect = 'index.html';
+      if (!redirect || redirect === '/' || redirect === '/login.html' || redirect.endsWith('/login')) {
+        redirect = '/index.html';
       }
       window.location.replace(redirect);
     } catch {

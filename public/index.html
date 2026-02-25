@@ -6,37 +6,44 @@
   <title>KUMA</title>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1e293b" />
-  <link rel="icon" href="logo.png" type="image/png" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/css/styles.css" />
   <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');</script>
 </head>
 <body>
   <div class="app">
     <header class="topbar">
-      <a href="index.html" class="topbar__brand">
-        <img src="logo.png" alt="KUMA" class="topbar__logo" />
-        <span>KUMA</span>
-      </a>
-      <div class="topbar__notifications-wrap">
-        <button type="button" class="topbar__notifications-btn" id="btn-notifications" aria-label="Notificaciones">
-          <span class="topbar__notifications-icon">🔔</span>
-          <span class="topbar__notifications-badge" id="notifications-badge" style="display:none;">0</span>
-        </button>
-        <div class="notifications-dropdown" id="notifications-dropdown">
-          <div class="notifications-dropdown__header">Notificaciones</div>
-          <div class="notifications-dropdown__list" id="notifications-list"></div>
+      <div class="topbar__row topbar__row--first">
+        <div class="topbar__left">
+          <a href="/index.html" class="topbar__brand">
+            <img src="/assets/logo.png" alt="KUMA" class="topbar__logo" />
+            <span>KUMA</span>
+          </a>
+          <span id="topbar-welcome" class="topbar__welcome"></span>
+        </div>
+        <div class="topbar__right">
+          <div class="topbar__notifications-wrap">
+            <button type="button" class="topbar__notifications-btn" id="btn-notifications" aria-label="Notificaciones">
+              <span class="topbar__notifications-icon">🔔</span>
+              <span class="topbar__notifications-badge" id="notifications-badge" style="display:none;">0</span>
+            </button>
+            <div class="notifications-dropdown" id="notifications-dropdown">
+              <div class="notifications-dropdown__header">Notificaciones</div>
+              <div class="notifications-dropdown__list" id="notifications-list"></div>
+            </div>
+          </div>
+          <span id="nav-auth"></span>
         </div>
       </div>
       <nav class="topbar__nav">
-        <a class="topbar__link active" href="index.html">Inicio</a>
-        <a class="topbar__link" href="sales.html">Punto de venta</a>
-        <a class="topbar__link" href="inventory.html">Inventario</a>
-        <a class="topbar__link" href="sales-history.html">Ventas</a>
-        <a class="topbar__link" href="reports.html">Reportes</a>
-        <a class="topbar__link" href="entries.html">Entrada</a>
-        <a class="topbar__link" href="clients.html">Clientes</a>
-        <a class="topbar__link" href="settings.html">Configuración</a>
-        <span id="nav-auth"></span>
+        <a class="topbar__link active" href="/index.html">Inicio</a>
+        <a class="topbar__link" href="/pages/sales.html">Punto de venta</a>
+        <a class="topbar__link" href="/pages/inventory.html">Inventario</a>
+        <a class="topbar__link" href="/pages/sales-history.html">Ventas</a>
+        <a class="topbar__link" href="/pages/reports.html">Reportes</a>
+        <a class="topbar__link" href="/pages/entries.html">Entrada</a>
+        <a class="topbar__link" href="/pages/clients.html">Clientes</a>
+        <a class="topbar__link" href="/pages/settings.html">Configuración</a>
       </nav>
     </header>
     <main class="main">
@@ -63,13 +70,13 @@
       <div class="card">
         <div class="card__title">Acciones rápidas</div>
         <div class="form-row">
-          <a href="sales.html" class="btn btn--primary">Abrir punto de venta</a>
-          <a href="inventory.html" class="btn btn--ghost">Ver inventario</a>
-          <a href="settings.html" class="btn btn--ghost">Cambiar tasa</a>
+          <a href="/pages/sales.html" class="btn btn--primary">Abrir punto de venta</a>
+          <a href="/pages/inventory.html" class="btn btn--ghost">Ver inventario</a>
+          <a href="/pages/settings.html" class="btn btn--ghost">Cambiar tasa</a>
         </div>
       </div>
       <div class="card">
-        <div class="card__title">Últimas ventas <a href="sales-history.html" class="card__link">Ver todas</a></div>
+        <div class="card__title">Últimas ventas <a href="/pages/sales-history.html" class="card__link">Ver todas</a></div>
         <p class="text-muted" style="margin: 0 0 1rem;">Resumen de las ventas recientes.</p>
         <button type="button" class="btn btn--primary" id="btn-show-recent-sales">Ver últimas ventas</button>
         <p class="text-muted mt-1 mb-0" id="recent-sales-msg">Cargando…</p>
@@ -91,7 +98,7 @@
         <p class="text-muted mt-1 mb-0" id="expiring-msg"></p>
       </div>
       <div class="card">
-        <div class="card__title">Productos con bajo stock <a href="inventory.html" class="card__link">Ir a inventario</a></div>
+        <div class="card__title">Productos con bajo stock <a href="/pages/inventory.html" class="card__link">Ir a inventario</a></div>
         <p class="text-muted" style="margin: 0 0 1rem;">Productos con cantidad por debajo del mínimo.</p>
         <button type="button" class="btn btn--primary" id="btn-show-low-stock">Ver productos con bajo stock</button>
         <p class="text-muted mt-1 mb-0" id="low-stock-msg">Cargando…</p>
@@ -99,19 +106,19 @@
       </div>
     </main>
   </div>
-  <script src="js/auth.js"></script>
-  <script src="js/auth-nav.js"></script>
+  <script src="/js/auth/auth.js"></script>
+  <script src="/js/auth/auth-nav.js"></script>
   <script>
     document.addEventListener('keydown', function(e) {
       if (!e.ctrlKey) return;
-      if (e.key === '1') { e.preventDefault(); location.href = 'index.html'; }
-      if (e.key === '2') { e.preventDefault(); location.href = 'sales.html'; }
-      if (e.key === '3') { e.preventDefault(); location.href = 'inventory.html'; }
-      if (e.key === '4') { e.preventDefault(); location.href = 'sales-history.html'; }
-      if (e.key === '5') { e.preventDefault(); location.href = 'reports.html'; }
-      if (e.key === '6') { e.preventDefault(); location.href = 'entries.html'; }
-      if (e.key === '7') { e.preventDefault(); location.href = 'clients.html'; }
-      if (e.key === '8') { e.preventDefault(); location.href = 'settings.html'; }
+      if (e.key === '1') { e.preventDefault(); location.href = '/index.html'; }
+      if (e.key === '2') { e.preventDefault(); location.href = '/pages/sales.html'; }
+      if (e.key === '3') { e.preventDefault(); location.href = '/pages/inventory.html'; }
+      if (e.key === '4') { e.preventDefault(); location.href = '/pages/sales-history.html'; }
+      if (e.key === '5') { e.preventDefault(); location.href = '/pages/reports.html'; }
+      if (e.key === '6') { e.preventDefault(); location.href = '/pages/entries.html'; }
+      if (e.key === '7') { e.preventDefault(); location.href = '/pages/clients.html'; }
+      if (e.key === '8') { e.preventDefault(); location.href = '/pages/settings.html'; }
     });
   </script>
   <div class="overlay" id="dashboard-modal-recent-sales" style="display: none;">
@@ -154,13 +161,13 @@
         </table>
       </div>
       <div class="modal__actions">
-        <a href="inventory.html" class="btn btn--primary">Ir a inventario</a>
+        <a href="/pages/inventory.html" class="btn btn--primary">Ir a inventario</a>
         <button type="button" class="btn btn--ghost" id="btn-close-low-stock">Cerrar</button>
       </div>
     </div>
   </div>
   <div id="alert-modal-root"></div>
-  <script src="js/alerts-notifications.js"></script>
-  <script type="module" src="js/main.js"></script>
+  <script src="/js/shared/alerts-notifications.js"></script>
+  <script type="module" src="/js/pages/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KUMA - Configuración</title>
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');</script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar__row topbar__row--first">
+        <div class="topbar__left">
+          <a href="/index.html" class="topbar__brand">
+            <img src="/assets/logo.png" alt="KUMA" class="topbar__logo" />
+            <span>KUMA</span>
+          </a>
+          <span id="topbar-welcome" class="topbar__welcome"></span>
+        </div>
+        <div class="topbar__right">
+          <div class="topbar__notifications-wrap">
+            <button type="button" class="topbar__notifications-btn" id="btn-notifications" aria-label="Notificaciones">
+              <span class="topbar__notifications-icon">🔔</span>
+              <span class="topbar__notifications-badge" id="notifications-badge" style="display:none;">0</span>
+            </button>
+            <div class="notifications-dropdown" id="notifications-dropdown">
+              <div class="notifications-dropdown__header">Notificaciones</div>
+              <div class="notifications-dropdown__list" id="notifications-list"></div>
+            </div>
+          </div>
+          <span id="nav-auth"></span>
+        </div>
+      </div>
+      <nav class="topbar__nav">
+        <a class="topbar__link" href="/index.html">Inicio</a>
+        <a class="topbar__link" href="/pages/sales.html">Punto de venta</a>
+        <a class="topbar__link" href="/pages/inventory.html">Inventario</a>
+        <a class="topbar__link" href="/pages/sales-history.html">Ventas</a>
+        <a class="topbar__link" href="/pages/reports.html">Reportes</a>
+        <a class="topbar__link" href="/pages/entries.html">Entrada</a>
+        <a class="topbar__link" href="/pages/clients.html">Clientes</a>
+        <a class="topbar__link active" href="/pages/settings.html">Configuración</a>
+      </nav>
+    </header>
+    <main class="main">
+      <h1 class="page-title">Configuración</h1>
+      <div class="settings-row">
+        <div class="card settings-card">
+        <div class="card__title">Apariencia</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Cambia entre tema claro y oscuro.</p>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema">
+          <span id="theme-toggle-label">Modo oscuro</span>
+        </button>
+      </div>
+      <div class="card settings-card">
+        <div class="card__title">Tasa de cambio (USD → Bs)</div>
+        <p class="text-muted" style="margin: 0 0 1rem;">Los precios se guardan en dólares. Esta tasa se usa para mostrar totales en bolívares en el punto de venta. Cada cambio queda registrado en el historial para auditoría.</p>
+        <div class="form-group">
+          <label for="exchange-rate">Tasa actual (Bs por 1 USD)</label>
+          <input type="number" id="exchange-rate" min="0.01" step="0.01" placeholder="36.50" />
+        </div>
+        <div class="form-group">
+          <label for="rate-notes">Nota (opcional, para auditoría)</label>
+          <input type="text" id="rate-notes" placeholder="Ej: Tasa BCV 23/02/2025" />
+        </div>
+        <div class="form-row mt-1">
+          <button type="button" class="btn btn--primary" id="btn-save-rate">Guardar tasa</button>
+        </div>
+        <div id="settings-msg"></div>
+      </div>
+      <div class="card settings-card settings-card--admin-only">
+        <div class="card__title">Copia de seguridad</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Descarga una copia del archivo de base de datos (inventory.db) para respaldo.</p>
+        <a href="/api/backup" class="btn btn--ghost" id="btn-backup" download="inventory.db">Descargar copia de seguridad</a>
+      </div>
+      <div class="card settings-card settings-card--admin-only">
+        <div class="card__title">Restaurar desde copia</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Sube un archivo .db (copia de seguridad o <strong>demoBD.db</strong>). La restauración se aplicará al <strong>reiniciar el servidor</strong>. Se guardará una copia de la base actual como inventory.db.bak.</p>
+        <div class="form-group">
+          <label for="restore-file">Seleccionar archivo (.db)</label>
+          <input type="file" id="restore-file" accept=".db,application/octet-stream" />
+        </div>
+        <button type="button" class="btn btn--primary" id="btn-restore" disabled>Restaurar (aplicar al reiniciar)</button>
+        <p id="restore-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
+      </div>
+      <div class="card settings-card settings-card--admin-only">
+        <div class="card__title">Base de datos de demostración</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Carga la base de datos <strong>demoBD.db</strong> con productos, ventas y clientes de ejemplo. Reinicie el servidor después para aplicarla.</p>
+        <button type="button" class="btn btn--ghost" id="btn-restore-demo">Cargar base de datos de demostración</button>
+        <p id="restore-demo-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
+      </div>
+      <div class="card settings-card settings-card--admin-only">
+        <div class="card__title">Eliminar base de datos actual</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Borra la base de datos actual. Útil si está dañada. Después puede restaurar desde una copia o cargar la demo. Se creará una base de datos nueva vacía (usuario admin / Admin123!).</p>
+        <button type="button" class="btn btn--ghost btn--danger" id="btn-delete-db">Eliminar base de datos actual</button>
+        <p id="delete-db-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
+      </div>
+      <div class="card settings-card settings-card--admin-only">
+        <div class="card__title">Copia de seguridad automática</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Todos los días a las <strong>23:59</strong> (hora Venezuela) se guarda una copia en la carpeta <strong>backups/</strong>. Se mantienen como máximo <strong>7 copias</strong>; las más antiguas se eliminan.</p>
+      </div>
+      </div>
+      <div class="card">
+        <div class="card__title">Historial de tasa de cambio (auditoría)</div>
+        <p class="text-muted" style="margin: 0 0 .75rem;">Registro de cada cambio de tasa con fecha y hora.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha y hora</th>
+                <th>Tasa (Bs/USD)</th>
+                <th>Nota</th>
+              </tr>
+            </thead>
+            <tbody id="rate-history-tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-pagination" id="rate-history-pagination"></div>
+        <p class="text-muted mt-1 mb-0" id="rate-history-msg">Cargando…</p>
+      </div>
+    </main>
+  </div>
+  <script>
+    document.addEventListener('keydown', function(e) {
+      if (!e.ctrlKey) return;
+      if (e.key === '1') { e.preventDefault(); location.href = '/index.html'; }
+      if (e.key === '2') { e.preventDefault(); location.href = '/pages/sales.html'; }
+      if (e.key === '3') { e.preventDefault(); location.href = '/pages/inventory.html'; }
+      if (e.key === '4') { e.preventDefault(); location.href = '/pages/sales-history.html'; }
+      if (e.key === '5') { e.preventDefault(); location.href = '/pages/reports.html'; }
+      if (e.key === '6') { e.preventDefault(); location.href = '/pages/entries.html'; }
+      if (e.key === '7') { e.preventDefault(); location.href = '/pages/clients.html'; }
+      if (e.key === '8') { e.preventDefault(); location.href = '/pages/settings.html'; }
+    });
+  </script>
+  <div id="alert-modal-root"></div>
+  <script src="/js/auth/auth.js"></script>
+  <script src="/js/auth/auth-nav.js"></script>
+  <script src="/js/shared/alerts-notifications.js"></script>
+  <script type="module" src="/js/pages/settings.js"></script>
+</body>
+</html>

@@ -42,12 +42,15 @@ function formatDateTime(s: string | number | null | undefined): string {
 }
 
 function showMsg(el: HTMLElement, text: string, isError: boolean) {
+  const showAlert = (window as any).showAlert;
+  if (typeof showAlert === 'function') {
+    showAlert({ title: isError ? 'Aviso' : 'Listo', message: text, type: isError ? 'error' : 'success' });
+    return;
+  }
   el.textContent = text;
   el.className = isError ? 'msg msg--error' : 'msg msg--success';
   el.style.display = 'block';
-  setTimeout(() => {
-    el.style.display = 'none';
-  }, 3000);
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
 }
 
 async function loadRate() {
@@ -154,6 +157,102 @@ if (rateBanner) showRateReminder();
 
 const backupLink = document.getElementById('btn-backup') as HTMLAnchorElement;
 if (backupLink) backupLink.href = `${API}/api/backup`;
+
+const restoreFile = document.getElementById('restore-file') as HTMLInputElement;
+const btnRestore = document.getElementById('btn-restore');
+const restoreMsg = document.getElementById('restore-msg');
+if (restoreFile && btnRestore && restoreMsg) {
+  restoreFile.addEventListener('change', () => {
+    btnRestore.setAttribute('disabled', 'true');
+    if (restoreFile.files && restoreFile.files.length > 0) btnRestore.removeAttribute('disabled');
+  });
+  btnRestore.addEventListener('click', async () => {
+    if (!restoreFile.files || restoreFile.files.length === 0) return;
+    const file = restoreFile.files[0];
+    restoreMsg.style.display = 'block';
+    restoreMsg.textContent = 'Enviando…';
+    restoreMsg.className = 'text-muted mt-1 mb-0';
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const chunk = 8192;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        const slice = bytes.subarray(i, i + chunk);
+        binary += String.fromCharCode.apply(null, Array.from(slice));
+      }
+      const b64 = btoa(binary);
+      const res = await fetch(`${API}/api/backup/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: b64 }),
+      });
+      const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string; message?: string };
+      if (res.ok && data.ok) {
+        restoreMsg.textContent = data.message || 'Listo. Reinicie el servidor para completar la restauración.';
+        restoreMsg.className = 'msg msg--success mt-1 mb-0';
+        restoreFile.value = '';
+        btnRestore.setAttribute('disabled', 'true');
+      } else {
+        restoreMsg.textContent = data.error || 'Error al restaurar.';
+        restoreMsg.className = 'msg msg--error mt-1 mb-0';
+      }
+    } catch (e) {
+      restoreMsg.textContent = 'Error de conexión.';
+      restoreMsg.className = 'msg msg--error mt-1 mb-0';
+    }
+  });
+}
+
+const btnRestoreDemo = document.getElementById('btn-restore-demo');
+const restoreDemoMsg = document.getElementById('restore-demo-msg');
+if (btnRestoreDemo && restoreDemoMsg) {
+  btnRestoreDemo.addEventListener('click', async () => {
+    restoreDemoMsg.style.display = 'block';
+    restoreDemoMsg.textContent = 'Preparando…';
+    restoreDemoMsg.className = 'text-muted mt-1 mb-0';
+    try {
+      const res = await fetch(`${API}/api/backup/restore-demo`, { method: 'POST' });
+      const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string; message?: string };
+      if (res.ok && data.ok) {
+        restoreDemoMsg.textContent = data.message || 'Reinicie el servidor para cargar la base de demostración.';
+        restoreDemoMsg.className = 'msg msg--success mt-1 mb-0';
+      } else {
+        restoreDemoMsg.textContent = data.error || 'Error. Asegúrese de que demoBD.db exista (ejecute: node scripts/create-demo-db.js).';
+        restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
+      }
+    } catch (e) {
+      restoreDemoMsg.textContent = 'Error de conexión.';
+      restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
+    }
+  });
+}
+
+const btnDeleteDb = document.getElementById('btn-delete-db');
+const deleteDbMsg = document.getElementById('delete-db-msg');
+if (btnDeleteDb && deleteDbMsg) {
+  btnDeleteDb.addEventListener('click', async () => {
+    if (!confirm('¿Eliminar la base de datos actual? Se borrarán todos los datos. Puede restaurar después desde una copia o la demo.')) return;
+    deleteDbMsg.style.display = 'block';
+    deleteDbMsg.textContent = 'Eliminando…';
+    deleteDbMsg.className = 'text-muted mt-1 mb-0';
+    try {
+      const res = await fetch(`${API}/api/backup/delete-database`, { method: 'POST' });
+      const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string; message?: string };
+      if (res.ok && data.ok) {
+        deleteDbMsg.textContent = data.message || 'Base de datos eliminada. Recargando…';
+        deleteDbMsg.className = 'msg msg--success mt-1 mb-0';
+        setTimeout(() => window.location.replace('/login.html'), 2000);
+      } else {
+        deleteDbMsg.textContent = data.error || 'Error al eliminar.';
+        deleteDbMsg.className = 'msg msg--error mt-1 mb-0';
+      }
+    } catch (e) {
+      deleteDbMsg.textContent = 'Error de conexión.';
+      deleteDbMsg.className = 'msg msg--error mt-1 mb-0';
+    }
+  });
+}
 
 loadRate();
 loadRateHistory();
