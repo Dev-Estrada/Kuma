@@ -342,6 +342,32 @@ document.getElementById('btn-low-stock')?.addEventListener('click', async () => 
     currentProductsPage = 1;
     renderTable(list, 1);
 });
+document.getElementById('btn-print-catalog')?.addEventListener('click', async () => {
+    if (typeof window.openPrintWindow !== 'function') return;
+    try {
+        const list = await getJson('/api/products');
+        const byCat = {};
+        (list || []).forEach((p) => {
+            const cat = (p.categoryName && String(p.categoryName).trim()) ? String(p.categoryName) : 'Sin categoría';
+            if (!byCat[cat]) byCat[cat] = [];
+            byCat[cat].push(p);
+        });
+        const cats = Object.keys(byCat).sort((a, b) => (a === 'Sin categoría' ? 1 : b === 'Sin categoría' ? -1 : a.localeCompare(b)));
+        let html = '<h1>Catálogo de productos</h1>';
+        cats.forEach((cat) => {
+            html += '<h2>' + escapeHtml(cat) + '</h2><table><thead><tr><th>ID</th><th>SKU</th><th>Cód. barras</th><th>Nombre</th><th>Descripción</th><th>P. venta USD</th><th>P. costo USD</th><th>Cantidad</th><th>Mín.</th><th>Unidad</th></tr></thead><tbody>';
+            byCat[cat].forEach((p) => {
+                html += '<tr><td>' + (p.id ?? '') + '</td><td>' + escapeHtml(p.sku) + '</td><td>' + escapeHtml(p.barcode ?? '') + '</td><td>' + escapeHtml(p.name ?? '') + '</td><td>' + escapeHtml(p.description ?? '') + '</td><td>$' + Number(p.listPrice ?? 0).toFixed(2) + '</td><td>$' + Number(p.costPrice ?? 0).toFixed(2) + '</td><td>' + (p.quantity ?? 0) + '</td><td>' + (p.minimumStock ?? '') + '</td><td>' + escapeHtml(p.unitOfMeasure ?? '') + '</td></tr>';
+            });
+            html += '</tbody></table>';
+        });
+        window.openPrintWindow('Catálogo de productos - KUMA', html);
+    } catch (e) {
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'Error al cargar productos para el catálogo.', type: 'error' });
+        else alert('Error al cargar productos.');
+    }
+});
 async function loadLowStockBanner() {
     try {
         const low = await getJson('/api/products/low-stock');

@@ -297,6 +297,26 @@ if (btnDeleteDb && deleteDbMsg) {
         }
     });
 }
+document.getElementById('btn-print-settings')?.addEventListener('click', async () => {
+    if (typeof window.openPrintWindow !== 'function') return;
+    try {
+        const [rateRes, history] = await Promise.all([
+            getJson('/api/settings/exchange-rate'),
+            getJson('/api/settings/exchange-rate-history').catch(() => []),
+        ]);
+        let html = '<h1>Configuración - KUMA</h1><h2>Tasa de cambio (USD → Bs)</h2><p><strong>Tasa actual:</strong> ' + Number(rateRes?.exchangeRate ?? 0).toFixed(2) + ' Bs por 1 USD</p>';
+        html += '<h2>Historial de tasas</h2><table><thead><tr><th>Fecha</th><th>Tasa (Bs/USD)</th><th>Notas</th></tr></thead><tbody>';
+        (Array.isArray(history) ? history : []).forEach((row) => {
+            html += '<tr><td>' + formatDateTime(row.createdAt) + '</td><td>' + Number(row.rate).toFixed(2) + '</td><td>' + (row.notes || '—').replace(/</g, '&lt;') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        window.openPrintWindow('Configuración - KUMA', html);
+    } catch (e) {
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'Error al cargar la configuración.', type: 'error' });
+        else alert('Error al cargar la configuración.');
+    }
+});
 loadRate();
 loadRateHistory();
 export {};

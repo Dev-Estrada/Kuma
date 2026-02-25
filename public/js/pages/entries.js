@@ -167,5 +167,22 @@ async function loadRecentEntries() {
   }
 }
 
+document.getElementById('btn-print-entries')?.addEventListener('click', async () => {
+  if (typeof window.openPrintWindow !== 'function') return;
+  try {
+    const list = await getJson('/api/movements');
+    const entradas = (list || []).filter((m) => m.movementType === 'entrada').slice(0, 200);
+    let html = '<h1>Últimas entradas de mercancía - KUMA</h1><table><thead><tr><th>ID</th><th>Producto ID</th><th>Cantidad</th><th>Ref.</th><th>Motivo / Notas</th><th>Fecha</th></tr></thead><tbody>';
+    entradas.forEach((m) => {
+      html += '<tr><td>' + m.id + '</td><td>' + m.productId + '</td><td>' + m.quantity + '</td><td>' + String(m.referenceNumber || '—').replace(/</g, '&lt;') + '</td><td>' + String(m.reason || m.notes || '—').replace(/</g, '&lt;') + '</td><td>' + formatDateTime(m.createdAt) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    window.openPrintWindow('Entradas de mercancía - KUMA', html);
+  } catch (e) {
+    if (window.showAlert) window.showAlert({ title: 'Error', message: 'Error al cargar entradas.', type: 'error' });
+    else alert('Error al cargar entradas.');
+  }
+});
+
 loadRecentEntries();
 export {};

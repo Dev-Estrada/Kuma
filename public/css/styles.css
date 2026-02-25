@@ -720,6 +720,46 @@ tr.row--voided td {
   align-content: start;
 }
 
+/* Desplegable búsqueda de clientes (POS) */
+.pos-client-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.25rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+}
+
+.pos-client-result {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.9375rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.pos-client-result:last-child {
+  border-bottom: none;
+}
+
+.pos-client-result:hover {
+  background: var(--bg);
+}
+
+.pos-client-result--new {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.pos-client-result__add {
+  display: inline-block;
+}
+
 .product-grid__empty {
   grid-column: 1/-1;
   padding: 2rem;

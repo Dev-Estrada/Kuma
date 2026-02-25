@@ -48,6 +48,9 @@
     </header>
     <main class="main">
       <h1 class="page-title">Inicio</h1>
+      <div class="controls-bar" style="margin-bottom: 1rem;">
+        <button type="button" class="btn btn--ghost" id="btn-print-summary">Imprimir resumen</button>
+      </div>
       <div class="dashboard-grid" id="dashboard-stats">
         <div class="stat-card">
           <div class="stat-card__value" id="stat-products">—</div>
@@ -80,22 +83,6 @@
         <p class="text-muted" style="margin: 0 0 1rem;">Resumen de las ventas recientes.</p>
         <button type="button" class="btn btn--primary" id="btn-show-recent-sales">Ver últimas ventas</button>
         <p class="text-muted mt-1 mb-0" id="recent-sales-msg">Cargando…</p>
-      </div>
-      <div class="card" id="expiring-card" style="display:none;">
-        <div class="card__title">Próximos a vencer (30 días)</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>SKU</th>
-                <th>Fecha venc.</th>
-              </tr>
-            </thead>
-            <tbody id="expiring-tbody"></tbody>
-          </table>
-        </div>
-        <p class="text-muted mt-1 mb-0" id="expiring-msg"></p>
       </div>
       <div class="card">
         <div class="card__title">Productos con bajo stock <a href="/pages/inventory.html" class="card__link">Ir a inventario</a></div>
@@ -167,6 +154,7 @@
     </div>
   </div>
   <div id="alert-modal-root"></div>
+  <script src="/js/shared/print-utils.js"></script>
   <script src="/js/shared/alerts-notifications.js"></script>
   <script type="module" src="/js/pages/main.js"></script>
 </body>

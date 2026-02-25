@@ -174,5 +174,21 @@ document.getElementById('clients-tbody')?.addEventListener('click', async (e) =>
   }
 });
 
+document.getElementById('btn-print-clients')?.addEventListener('click', async () => {
+  if (typeof window.openPrintWindow !== 'function') return;
+  try {
+    const list = await getJson('/api/clients');
+    let html = '<h1>Lista de clientes - KUMA</h1><table><thead><tr><th>ID</th><th>Nombre</th><th>Documento</th><th>Teléfono</th><th>Email</th><th>Dirección</th><th>Notas</th><th>Registro</th></tr></thead><tbody>';
+    (list || []).forEach((c) => {
+      html += '<tr><td>' + (c.id ?? '') + '</td><td>' + escapeHtml(c.name) + '</td><td>' + escapeHtml(c.document) + '</td><td>' + escapeHtml(c.phone) + '</td><td>' + escapeHtml(c.email) + '</td><td>' + escapeHtml(c.address) + '</td><td>' + escapeHtml(c.notes) + '</td><td>' + formatDateTime(c.createdAt) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    window.openPrintWindow('Lista de clientes - KUMA', html);
+  } catch (e) {
+    if (window.showAlert) window.showAlert({ title: 'Error', message: 'Error al cargar la lista de clientes.', type: 'error' });
+    else alert('Error al cargar la lista.');
+  }
+});
+
 loadClients();
 export {};

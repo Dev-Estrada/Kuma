@@ -220,5 +220,33 @@ document.getElementById('btn-clear-dates')?.addEventListener('click', () => {
         toEl.value = '';
     loadSalesList(false);
 });
+document.getElementById('btn-print-sales')?.addEventListener('click', async () => {
+    if (typeof window.openPrintWindow !== 'function') return;
+    try {
+        const fromEl = document.getElementById('filter-from');
+        const toEl = document.getElementById('filter-to');
+        const from = fromEl?.value?.trim();
+        const to = toEl?.value?.trim();
+        let sales;
+        if (from && to)
+            sales = await getJson(`/api/sales?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+        else
+            sales = await getJson('/api/sales?limit=500');
+        const statusLabel = (st) => (st === 'anulada' ? 'Anulada' : st === 'completada' ? 'Completada' : st || '—');
+        let html = '<h1>Historial de ventas - KUMA</h1>';
+        if (from && to) html += '<p class="print-meta">Período: ' + from + ' a ' + to + '</p>';
+        html += '<table><thead><tr><th>ID</th><th>Estado</th><th>Fecha y hora</th><th>Tasa Bs/USD</th><th>Total USD</th><th>Total Bs</th><th>Items</th><th>Cliente</th></tr></thead><tbody>';
+        (sales || []).forEach((s) => {
+            const cliente = (s.clientName && String(s.clientName).trim()) ? String(s.clientName).replace(/</g, '&lt;') : '—';
+            html += '<tr><td>#' + s.id + '</td><td>' + statusLabel(s.status) + '</td><td>' + formatDateTime(s.createdAt) + '</td><td>' + Number(s.exchangeRate).toFixed(2) + '</td><td>$' + Number(s.totalUsd).toFixed(2) + '</td><td>Bs ' + Number(s.totalBs).toFixed(2) + '</td><td>' + (s.itemCount ?? '—') + '</td><td>' + cliente + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        window.openPrintWindow('Historial de ventas - KUMA', html);
+    } catch (e) {
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'Error al cargar ventas para imprimir.', type: 'error' });
+        else alert('Error al cargar ventas.');
+    }
+});
 loadSalesList(false);
 export {};

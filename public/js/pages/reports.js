@@ -148,6 +148,45 @@ if (fromInput && toInput) {
     fromInput.value = today;
     toInput.value = today;
 }
+document.getElementById('btn-print-report')?.addEventListener('click', async () => {
+    if (typeof window.openPrintWindow !== 'function') return;
+    try {
+        const [dayData, invData, topData] = await Promise.all([
+            getJson('/api/reports/day-summary-with-profit').catch(() => ({})),
+            getJson('/api/reports/inventory-value').catch(() => ({})),
+            getJson('/api/reports/top-products?limit=100').catch(() => []),
+        ]);
+        const from = fromInput?.value?.trim();
+        const to = toInput?.value?.trim();
+        let periodHtml = '';
+        if (from && to && from <= to) {
+            try {
+                const periodData = await getJson(`/api/reports/sales-by-period?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+                periodHtml = '<h2>Ventas por período (' + from + ' a ' + to + ')</h2><div class="reports-summary__row"><strong>Ventas:</strong> ' + (periodData.count ?? 0) + '</div><div class="reports-summary__row"><strong>Total USD:</strong> $' + Number(periodData.totalUsd ?? 0).toFixed(2) + '</div><div class="reports-summary__row"><strong>Total Bs:</strong> Bs ' + Number(periodData.totalBs ?? 0).toFixed(2) + '</div>';
+            } catch (_) { }
+        }
+        const cost = dayData.totalCostUsd ?? 0;
+        const profit = dayData.profitUsd ?? ((dayData.totalUsd ?? 0) - cost);
+        const margin = (dayData.totalUsd ?? 0) > 0 ? (profit / (dayData.totalUsd ?? 0)) * 100 : 0;
+        let html = '<h1>Reporte - KUMA</h1>';
+        html += '<h2>Cierre del día (hoy)</h2><div class="reports-summary__row"><strong>Ventas hoy:</strong> ' + (dayData.count ?? 0) + '</div><div class="reports-summary__row"><strong>Total USD:</strong> $' + Number(dayData.totalUsd ?? 0).toFixed(2) + '</div><div class="reports-summary__row"><strong>Total Bs:</strong> Bs ' + Number(dayData.totalBs ?? 0).toFixed(2) + '</div><div class="reports-summary__row"><strong>Costo USD:</strong> $' + Number(cost).toFixed(2) + '</div><div class="reports-summary__row"><strong>Utilidad USD:</strong> $' + Number(profit).toFixed(2) + '</div><div class="reports-summary__row"><strong>Margen %:</strong> ' + Number(margin).toFixed(1) + '%</div>';
+        if (periodHtml) html += periodHtml;
+        html += '<h2>Valor del inventario</h2><div class="reports-summary__row"><strong>Valor en costo:</strong> $' + Number(invData.totalCostValue ?? 0).toFixed(2) + ' USD</div><div class="reports-summary__row"><strong>Valor a precio de venta:</strong> $' + Number(invData.totalListValue ?? 0).toFixed(2) + ' USD</div><div class="reports-summary__row"><strong>Productos:</strong> ' + (invData.totalProducts ?? 0) + ' · <strong>Unidades:</strong> ' + (invData.totalUnits ?? 0) + '</div>';
+        html += '<h2>Productos más vendidos</h2><table><thead><tr><th>#</th><th>Producto</th><th>SKU</th><th>Cant. vendida</th><th>Ventas USD</th><th>Costo USD</th><th>Utilidad USD</th><th>Margen %</th></tr></thead><tbody>';
+        (topData || []).slice(0, 50).forEach((row, i) => {
+            const costR = row.totalCostUsd ?? 0;
+            const profitR = row.profitUsd ?? (Number(row.totalUsd) - costR);
+            const marginR = (row.totalUsd ?? 0) > 0 ? (row.marginPercent ?? (profitR / Number(row.totalUsd) * 100)) : 0;
+            html += '<tr><td>' + (i + 1) + '</td><td>' + String(row.productName || '—').replace(/</g, '&lt;') + '</td><td>' + String(row.productSku || '—').replace(/</g, '&lt;') + '</td><td>' + row.totalQuantity + '</td><td>$' + Number(row.totalUsd).toFixed(2) + '</td><td>$' + Number(costR).toFixed(2) + '</td><td>$' + Number(profitR).toFixed(2) + '</td><td>' + Number(marginR).toFixed(1) + '%</td></tr>';
+        });
+        html += '</tbody></table>';
+        window.openPrintWindow('Reporte - KUMA', html);
+    } catch (e) {
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'Error al generar el reporte.', type: 'error' });
+        else alert('Error al generar el reporte.');
+    }
+});
 loadDaySummary();
 loadInventoryValue();
 loadTopProducts();

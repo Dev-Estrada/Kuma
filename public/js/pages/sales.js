@@ -168,9 +168,12 @@ async function completeSale(retries = 1) {
     }
     const discountInput = document.getElementById('sale-discount');
     const discountPercent = Math.max(0, Math.min(100, parseFloat(discountInput?.value || '0') || 0));
+    const clientIdEl = document.getElementById('pos-client-id');
+    const clientId = clientIdEl?.value?.trim() ? parseInt(clientIdEl.value, 10) : null;
     const body = {
         items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
         discountPercent,
+        clientId: clientId && !isNaN(clientId) ? clientId : undefined,
     };
     try {
         const res = await fetch(`${API}/api/sales`, {
@@ -229,46 +232,74 @@ document.getElementById('cart-items')?.addEventListener('click', (e) => {
 document.getElementById('sale-discount')?.addEventListener('input', renderCart);
 document.getElementById('btn-complete')?.addEventListener('click', () => completeSale());
 document.getElementById('btn-clear')?.addEventListener('click', clearCart);
-document.getElementById('product-search')?.addEventListener('input', (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    if (!q) {
-        renderProductGrid(products);
-        return;
-    }
-    const filtered = products.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
-    renderProductGrid(filtered);
-});
-document.getElementById('barcode-input')?.addEventListener('keydown', async (e) => {
-    if (e.key !== 'Enter')
-        return;
-    const input = e.target;
-    const barcode = input.value.trim();
-    if (!barcode)
-        return;
-    e.preventDefault();
-    try {
-        const res = await fetch(`${API}/api/products/by-barcode?barcode=${encodeURIComponent(barcode)}`);
-        if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            showMsg(data.error || 'Producto no encontrado', true);
+// ——— Buscador de productos (pos-search-input): filtrar lista y Enter para añadir por código/nombre
+const posSearchInput = document.getElementById('pos-search-input');
+if (posSearchInput) {
+    posSearchInput.addEventListener('input', () => {
+        const q = posSearchInput.value.trim().toLowerCase();
+        if (!q) {
+            renderProductGrid(products);
             return;
         }
-        const p = await res.json();
-        const available = (p.quantity ?? 0) - cart.reduce((s, l) => (l.productId === p.id ? s + l.quantity : s), 0);
+        const filtered = products.filter((p) => {
+            const name = (p.name || '').toLowerCase();
+            const sku = (p.sku || '').toLowerCase();
+            const barcode = (p.barcode || '').toLowerCase();
+            const idStr = String(p.id || '');
+            return name.includes(q) || sku.includes(q) || barcode.includes(q) || idStr === q;
+        });
+        renderProductGrid(filtered);
+    });
+    posSearchInput.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter')
+            return;
+        const query = posSearchInput.value.trim();
+        if (!query) {
+            e.preventDefault();
+            return;
+        }
+        e.preventDefault();
         const want = getPosQuantity();
-        const addQty = Math.min(want, available);
-        if (addQty <= 0) {
-            showMsg('Sin stock disponible para este producto.', true);
-            return;
+        try {
+            const res = await fetch(`${API}/api/products/by-barcode?barcode=${encodeURIComponent(query)}`);
+            if (res.ok) {
+                const p = await res.json();
+                const available = (p.quantity ?? 0) - cart.reduce((s, l) => (l.productId === p.id ? s + l.quantity : s), 0);
+                const addQty = Math.min(want, available);
+                if (addQty <= 0) {
+                    showMsg('Sin stock disponible para este producto.', true);
+                    return;
+                }
+                addToCart(p.id, p.name || p.sku, p.sku || '', p.listPrice ?? 0, p.quantity ?? 0);
+                posSearchInput.value = '';
+                showMsg(`Añadido: ${p.name || p.sku} x${addQty}`, false);
+                return;
+            }
         }
-        addToCart(p.id, p.name || p.sku, p.sku || '', p.listPrice ?? 0, p.quantity ?? 0);
-        input.value = '';
-        showMsg(`Añadido: ${p.name || p.sku} x${addQty}`, false);
-    }
-    catch (_) {
-        showMsg('Error de conexión', true);
-    }
-});
+        catch (_) { }
+        const q = query.toLowerCase();
+        const match = products.find((p) => {
+            const name = (p.name || '').toLowerCase();
+            const sku = (p.sku || '').toLowerCase();
+            const idStr = String(p.id || '');
+            return idStr === q || sku === q || name === q || name.startsWith(q) || sku.startsWith(q);
+        });
+        if (match) {
+            const available = getAvailableForProduct(match.id);
+            const addQty = Math.min(want, available);
+            if (addQty <= 0) {
+                showMsg('Sin stock disponible para este producto.', true);
+                return;
+            }
+            addToCart(match.id, match.name || match.sku, match.sku || '', match.listPrice ?? 0, match.quantity ?? 0);
+            posSearchInput.value = '';
+            showMsg(`Añadido: ${match.name || match.sku} x${addQty}`, false);
+        }
+        else {
+            showMsg('No se encontró ningún producto con ese código o nombre.', true);
+        }
+    });
+}
 async function loadLowStockBanner() {
     try {
         const low = await getJson('/api/products/low-stock');
@@ -284,6 +315,141 @@ async function loadLowStockBanner() {
     }
     catch (_) { }
 }
+// ——— Búsqueda de clientes y opción "Añadir nuevo cliente"
+let clientSearchTimeout = null;
+const posClientSearch = document.getElementById('pos-client-search');
+const posClientResults = document.getElementById('pos-client-results');
+const posClientId = document.getElementById('pos-client-id');
+
+function showClientResults(html) {
+    if (!posClientResults) return;
+    posClientResults.innerHTML = html;
+    posClientResults.style.display = html ? 'block' : 'none';
+}
+
+function selectClient(id, name) {
+    if (posClientId) posClientId.value = id ? String(id) : '';
+    if (posClientSearch) posClientSearch.value = name || '';
+    showClientResults('');
+}
+
+async function loadClientSearch(q) {
+    const qq = (q || '').trim();
+    if (!qq) {
+        showClientResults('');
+        return;
+    }
+    try {
+        const list = await getJson(`/api/clients/search?q=${encodeURIComponent(qq)}`);
+        const items = Array.isArray(list) ? list : [];
+        const addNewHtml = '<div class="pos-client-result pos-client-result--new" data-action="new"><span class="pos-client-result__add">➕ Añadir nuevo cliente</span></div>';
+        const listHtml = items.length === 0
+            ? addNewHtml
+            : items.map((c) => `<div class="pos-client-result" data-id="${c.id}" data-name="${(c.name || '').replace(/"/g, '&quot;')}">${(c.name || 'Sin nombre').replace(/</g, '&lt;')}</div>`).join('') + addNewHtml;
+        showClientResults(listHtml);
+    }
+    catch (_) {
+        showClientResults('<div class="pos-client-result pos-client-result--new" data-action="new"><span class="pos-client-result__add">➕ Añadir nuevo cliente</span></div>');
+    }
+}
+
+if (posClientSearch) {
+    posClientSearch.addEventListener('input', () => {
+        clearTimeout(clientSearchTimeout);
+        const q = posClientSearch.value.trim();
+        if (!q) {
+            showClientResults('');
+            if (posClientId) posClientId.value = '';
+            return;
+        }
+        clientSearchTimeout = setTimeout(() => loadClientSearch(q), 200);
+    });
+    posClientSearch.addEventListener('focus', () => {
+        if (posClientSearch.value.trim()) loadClientSearch(posClientSearch.value.trim());
+    });
+}
+
+if (posClientResults) {
+    posClientResults.addEventListener('click', (e) => {
+        const row = e.target.closest('.pos-client-result');
+        if (!row) return;
+        if (row.getAttribute('data-action') === 'new') {
+            openNewClientModal(posClientSearch?.value?.trim() || '');
+            showClientResults('');
+            return;
+        }
+        const id = row.getAttribute('data-id');
+        const name = row.getAttribute('data-name');
+        selectClient(id, name);
+    });
+}
+
+document.addEventListener('click', (e) => {
+    if (posClientResults?.style.display === 'block' && !e.target.closest('.pos-client-wrap')) {
+        showClientResults('');
+    }
+});
+
+// ——— Modal nuevo cliente (desde Punto de venta)
+const posNewClientModal = document.getElementById('pos-new-client-modal');
+const posNewClientForm = document.getElementById('pos-new-client-form');
+
+function openNewClientModal(prefillName = '') {
+    if (!posNewClientModal) return;
+    if (document.getElementById('pos-new-client-name')) document.getElementById('pos-new-client-name').value = prefillName || '';
+    if (document.getElementById('pos-new-client-document')) document.getElementById('pos-new-client-document').value = '';
+    if (document.getElementById('pos-new-client-phone')) document.getElementById('pos-new-client-phone').value = '';
+    if (document.getElementById('pos-new-client-email')) document.getElementById('pos-new-client-email').value = '';
+    if (document.getElementById('pos-new-client-address')) document.getElementById('pos-new-client-address').value = '';
+    if (document.getElementById('pos-new-client-notes')) document.getElementById('pos-new-client-notes').value = '';
+    posNewClientModal.style.display = 'flex';
+}
+
+function closeNewClientModal() {
+    if (posNewClientModal) posNewClientModal.style.display = 'none';
+}
+
+if (posNewClientForm) {
+    posNewClientForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('pos-new-client-name')?.value?.trim();
+        if (!name) return;
+        const payload = {
+            name,
+            document: document.getElementById('pos-new-client-document')?.value?.trim() || undefined,
+            phone: document.getElementById('pos-new-client-phone')?.value?.trim() || undefined,
+            email: document.getElementById('pos-new-client-email')?.value?.trim() || undefined,
+            address: document.getElementById('pos-new-client-address')?.value?.trim() || undefined,
+            notes: document.getElementById('pos-new-client-notes')?.value?.trim() || undefined,
+        };
+        try {
+            const res = await fetch(`${API}/api/clients`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showMsg(data.error || 'Error al crear el cliente', true);
+                return;
+            }
+            const newId = data.id;
+            const newName = data.name || name;
+            selectClient(newId, newName);
+            closeNewClientModal();
+            showMsg(`Cliente "${newName}" creado y asignado a la venta.`, false);
+        }
+        catch (_) {
+            showMsg('Error de conexión', true);
+        }
+    });
+}
+
+document.getElementById('pos-new-client-cancel')?.addEventListener('click', closeNewClientModal);
+posNewClientModal?.addEventListener('click', (e) => {
+    if (e.target === posNewClientModal) closeNewClientModal();
+});
+
 loadRate();
 loadProducts();
 loadLowStockBanner();
