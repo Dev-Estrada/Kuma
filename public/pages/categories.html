@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KUMA - Entrada de mercancía</title>
+  <title>KUMA - Categorías</title>
   <link rel="icon" href="/assets/logo.png" type="image/png" />
   <link rel="stylesheet" href="/css/styles.css" />
   <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');</script>
@@ -44,65 +44,50 @@
       </nav>
     </header>
     <main class="main">
-      <h1 class="page-title">Entrada de mercancía</h1>
-      <p class="text-muted" style="margin: 0 0 1rem;">Registra entradas de stock por producto. El movimiento queda registrado y el inventario se actualiza al instante.</p>
-      <div class="controls-bar" style="margin-bottom: 1rem;">
+      <h1 class="page-title">Categorías</h1>
+      <p class="text-muted" style="margin: 0 0 1rem;">Gestiona las categorías de productos. Se usan en Inventario para clasificar productos. Crea las que necesites para tu negocio.</p>
+
+      <div class="controls-bar">
         <a href="/pages/inventory.html" class="btn btn--ghost">← Volver a Inventario</a>
-        <button type="button" class="btn btn--ghost" id="btn-print-entries">Imprimir entradas</button>
-      </div>
-      <div class="cards-grid">
-      <div class="card">
-        <div class="card__title">Nueva entrada</div>
-        <div class="form-row">
-          <div class="form-group entry-product-search-wrap" style="flex: 1;">
-            <label for="entry-product-search">Producto (buscar por nombre, SKU o ID)</label>
-            <input type="text" id="entry-product-search" placeholder="Escribe para buscar..." autocomplete="off" />
-            <div id="entry-product-results" class="entry-product-results" aria-hidden="true"></div>
-            <input type="hidden" id="entry-product-id" />
-            <div id="entry-product-picked" class="text-muted" style="margin-top: .25rem; min-height: 1.25rem;"></div>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="entry-quantity">Cantidad *</label>
-            <input type="number" id="entry-quantity" min="1" value="1" required />
-          </div>
-          <div class="form-group" style="flex: 1;">
-            <label for="entry-reference">Nº de referencia / factura (opcional)</label>
-            <input type="text" id="entry-reference" placeholder="Ej: Factura 001, Remito 123" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="entry-reason">Motivo / notas (opcional)</label>
-          <input type="text" id="entry-reason" placeholder="Ej: Compra a proveedor, Devolución" />
-        </div>
-        <button type="button" class="btn btn--primary" id="btn-submit-entry">Registrar entrada</button>
-        <p id="entry-msg" class="mt-1 mb-0" style="display:none;"></p>
+        <button type="button" class="btn btn--primary" id="btn-new-category">Nueva categoría</button>
       </div>
 
-      <div class="card card--full-width">
-        <div class="card__title">Últimas entradas registradas</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Movimientos tipo entrada (solo referencia; el detalle por producto está en Inventario → movimientos del producto).</p>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Producto ID</th>
-                <th>Cantidad</th>
-                <th>Ref.</th>
-                <th>Motivo</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody id="entries-tbody"></tbody>
-          </table>
-        </div>
-        <div class="table-pagination" id="entries-pagination"></div>
-        <p class="text-muted mt-1 mb-0" id="entries-msg">Cargando…</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="categories-tbody"></tbody>
+        </table>
       </div>
-      </div>
+      <p class="text-muted mt-1 mb-0" id="categories-msg">Cargando…</p>
     </main>
+  </div>
+
+  <div class="overlay" id="category-modal" style="display:none;">
+    <div class="modal">
+      <h2 class="modal__title" id="category-modal-title">Nueva categoría</h2>
+      <form id="category-form">
+        <input type="hidden" id="category-id" />
+        <div class="form-group">
+          <label for="category-name">Nombre *</label>
+          <input type="text" id="category-name" required placeholder="Ej: Bebidas, Abarrotes" />
+        </div>
+        <div class="form-group">
+          <label for="category-description">Descripción</label>
+          <input type="text" id="category-description" placeholder="Opcional" />
+        </div>
+        <div class="modal__actions">
+          <button type="submit" class="btn btn--primary">Guardar</button>
+          <button type="button" class="btn btn--ghost" id="btn-cancel-category">Cancelar</button>
+        </div>
+      </form>
+    </div>
   </div>
   <script>
     document.addEventListener('keydown', function(e) {
@@ -113,14 +98,13 @@
       if (e.key === '4') { e.preventDefault(); location.href = '/pages/sales-history.html'; }
       if (e.key === '5') { e.preventDefault(); location.href = '/pages/reports.html'; }
       if (e.key === '6') { e.preventDefault(); location.href = '/pages/clients.html'; }
-      if (e.key === '7') { e.preventDefault(); location.href = '/pages/settings.html'; }
+      if (e.key === '8') { e.preventDefault(); location.href = '/pages/settings.html'; }
     });
   </script>
   <div id="alert-modal-root"></div>
   <script src="/js/auth/auth.js"></script>
   <script src="/js/auth/auth-nav.js"></script>
-  <script src="/js/shared/print-utils.js"></script>
   <script src="/js/shared/alerts-notifications.js"></script>
-  <script type="module" src="/js/pages/entries.js"></script>
+  <script type="module" src="/js/pages/categories.js"></script>
 </body>
 </html>

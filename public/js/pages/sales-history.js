@@ -1,7 +1,5 @@
+import { BANKS, PAYMENT_METHOD_LABELS } from '../shared/banks';
 const API = '';
-const ROWS_PER_PAGE = 7;
-let currentSalesPage = 1;
-let currentSalesList = [];
 async function getJson(url) {
     const res = await fetch(`${API}${url}`);
     if (!res.ok)
@@ -40,41 +38,61 @@ function formatDateTime(s) {
         return typeof s === 'string' ? s : '—';
     }
 }
+function getStatusLabel(status) {
+    return status === 'anulada' ? 'Anulada' : 'Completada';
+}
 function renderPagination(containerId, totalItems, currentPage, onPageChange) {
     const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
     const el = document.getElementById(containerId);
-    if (!el) return;
-    if (totalItems === 0) { el.innerHTML = ''; return; }
-    const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
-    const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
-    el.innerHTML = '<span class="table-pagination__range">Mostrando ' + start + '-' + end + ' de ' + totalItems + '</span><div class="table-pagination__nav"><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-prev"' + (currentPage <= 1 ? ' disabled' : '') + '>Anterior</button><span>Página ' + currentPage + ' de ' + totalPages + '</span><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-next"' + (currentPage >= totalPages ? ' disabled' : '') + '>Siguiente</button></div>';
-    document.getElementById(containerId + '-prev')?.addEventListener('click', function () { if (currentPage > 1) onPageChange(currentPage - 1); });
-    document.getElementById(containerId + '-next')?.addEventListener('click', function () { if (currentPage < totalPages) onPageChange(currentPage + 1); });
-}
-function renderSalesRows(sales, page) {
-    const tbody = document.getElementById('sales-tbody');
-    if (!sales.length) {
-        tbody.innerHTML = '';
-        document.getElementById('sales-pagination').innerHTML = '';
+    if (!el)
+        return;
+    if (totalItems === 0) {
+        el.innerHTML = '';
         return;
     }
+    const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
+    const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+    el.innerHTML =
+        `<span class="table-pagination__range">Mostrando ${start}-${end} de ${totalItems}</span>` +
+            `<div class="table-pagination__nav">` +
+            `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-prev" ${currentPage <= 1 ? ' disabled' : ''}>Anterior</button>` +
+            `<span>Página ${currentPage} de ${totalPages}</span>` +
+            `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-next" ${currentPage >= totalPages ? ' disabled' : ''}>Siguiente</button>` +
+            `</div>`;
+    document.getElementById(`${containerId}-prev`)?.addEventListener('click', () => { if (currentPage > 1)
+        onPageChange(currentPage - 1); });
+    document.getElementById(`${containerId}-next`)?.addEventListener('click', () => { if (currentPage < totalPages)
+        onPageChange(currentPage + 1); });
+}
+function renderSalesRows(sales, page = 1) {
+    const tbody = document.getElementById('sales-tbody');
     const totalPages = Math.ceil(sales.length / ROWS_PER_PAGE) || 1;
-    const p = Math.max(1, Math.min(page || 1, totalPages));
+    const p = Math.max(1, Math.min(page, totalPages));
     const slice = sales.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
-    const statusLabel = (st) => (st === 'anulada' ? 'Anulada' : st === 'completada' ? 'Completada' : st || '—');
     tbody.innerHTML = slice
-        .map((s) => {
-            const estado = statusLabel(s.status);
-            const cliente = (s.clientName && String(s.clientName).trim()) ? String(s.clientName).replace(/</g, '&lt;') : '—';
-            return '<tr><td><strong>#' + s.id + '</strong></td><td>' + estado + '</td><td>' + formatDateTime(s.createdAt) + '</td><td>' + Number(s.exchangeRate).toFixed(2) + '</td><td>$' + Number(s.totalUsd).toFixed(2) + '</td><td>Bs ' + Number(s.totalBs).toFixed(2) + '</td><td>' + (s.itemCount ?? '-') + '</td><td>' + cliente + '</td><td><button type="button" class="btn btn--sm btn--ghost btn-view-detail" data-sale-id="' + s.id + '">Ver detalle</button></td></tr>';
-        })
+        .map((s) => `<tr>
+          <td><strong>#${s.id}</strong></td>
+          <td>${getStatusLabel(s.status)}</td>
+          <td>${formatDateTime(s.createdAt)}</td>
+          <td>${Number(s.exchangeRate).toFixed(2)}</td>
+          <td>$${Number(s.totalUsd).toFixed(2)}</td>
+          <td>Bs ${Number(s.totalBs).toFixed(2)}</td>
+          <td>${s.itemCount ?? '-'}</td>
+          <td>${(s.clientName || '—').replace(/</g, '&lt;')}</td>
+          <td>
+            <button type="button" class="btn btn--sm btn--ghost btn-view-detail" data-sale-id="${s.id}">Ver detalle</button>
+            <button type="button" class="btn btn--sm btn--ghost btn-view-payment" data-sale-id="${s.id}">Método de pago</button>
+          </td>
+        </tr>`)
         .join('');
-    renderPagination('sales-pagination', sales.length, p, function (newPage) {
+    renderPagination('sales-pagination', sales.length, p, (newPage) => {
         currentSalesPage = newPage;
-        renderSalesRows(currentSalesList, newPage);
+        renderSalesRows(sales, newPage);
     });
 }
+const ROWS_PER_PAGE = 7;
 let allSales = [];
+let currentSalesPage = 1;
 function todayStr() {
     const d = new Date();
     const y = d.toLocaleString('en-CA', { timeZone: 'America/Caracas', year: 'numeric' });
@@ -98,11 +116,11 @@ async function loadSalesList(useDateFilter) {
             sales = await getJson('/api/sales?limit=200');
         }
         allSales = sales;
+        currentSalesPage = 1;
         if (sales.length === 0) {
             msg.textContent = from && to ? 'No hay ventas en ese rango de fechas.' : 'No hay ventas registradas.';
             tbody.innerHTML = '';
-            var pagEl = document.getElementById('sales-pagination');
-            if (pagEl) pagEl.innerHTML = '';
+            document.getElementById('sales-pagination').innerHTML = '';
             return;
         }
         msg.textContent = '';
@@ -111,28 +129,24 @@ async function loadSalesList(useDateFilter) {
     catch (e) {
         msg.textContent = 'Error al cargar las ventas.';
         tbody.innerHTML = '';
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al cargar el historial de ventas.', type: 'error' });
     }
 }
 function applySaleFilter() {
     const q = document.getElementById('sale-search')?.value.trim() || '';
     const msg = document.getElementById('sales-msg');
-    currentSalesPage = 1;
     if (!q) {
-        currentSalesList = allSales;
-        renderSalesRows(allSales, 1);
+        renderSalesRows(allSales, currentSalesPage);
         msg.textContent = '';
         return;
     }
     const filtered = allSales.filter((s) => String(s.id).includes(q));
-    currentSalesList = filtered;
+    currentSalesPage = 1;
     renderSalesRows(filtered, 1);
     if (filtered.length === 0) {
-        msg.textContent = 'Ninguna venta coincide con el ID "' + q + '".';
+        msg.textContent = `Ninguna venta coincide con el ID "${q}".`;
     }
     else {
-        msg.textContent = filtered.length + ' venta(s) encontrada(s).';
+        msg.textContent = `${filtered.length} venta(s) encontrada(s).`;
     }
 }
 function openDetailModal(sale) {
@@ -142,11 +156,24 @@ function openDetailModal(sale) {
     title.textContent = `Venta #${sale.id}`;
     const subtotalBeforeDiscount = sale.items.reduce((s, i) => s + i.subtotalUsd, 0);
     const discount = sale.discountPercent ?? 0;
+    const paymentLabel = sale.paymentMethod ? (PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod) : '';
+    const bankName = sale.paymentBankCode ? (BANKS.find((b) => b.code === sale.paymentBankCode)?.name || sale.paymentBankCode) : '';
+    const paymentInfo = paymentLabel
+        ? `<div class="sale-detail-payment">
+          <p><strong>Método de pago:</strong> ${paymentLabel}</p>
+          ${sale.paymentBankCode && bankName ? `<p><strong>Banco:</strong> ${bankName}</p>` : ''}
+          ${sale.paymentReference ? `<p><strong>Referencia:</strong> ${String(sale.paymentReference).replace(/</g, '&lt;')}</p>` : ''}
+          ${sale.paymentCashReceived != null ? `<p><strong>Efectivo recibido:</strong> ${sale.paymentMethod === 'efectivo_usd' ? '$' + Number(sale.paymentCashReceived).toFixed(2) + ' USD' : 'Bs ' + Number(sale.paymentCashReceived).toFixed(2)}</p>` : ''}
+          ${(sale.paymentChangeUsd != null && sale.paymentChangeUsd > 0) ? `<p><strong>Cambio (USD):</strong> $${Number(sale.paymentChangeUsd).toFixed(2)}</p>` : ''}
+          ${(sale.paymentChangeBs != null && sale.paymentChangeBs > 0) ? `<p><strong>Cambio (Bs):</strong> Bs ${Number(sale.paymentChangeBs).toFixed(2)}</p>` : ''}
+        </div>`
+        : '';
     content.innerHTML = `
     <div class="sale-detail-meta">
       <p><strong>Fecha y hora:</strong> ${formatDateTime(sale.createdAt)}</p>
       <p class="sale-detail-rate"><strong>Tasa aplicada en esta venta:</strong> 1 USD = <strong>${Number(sale.exchangeRate).toFixed(2)} Bs</strong></p>
       ${sale.notes ? `<p><strong>Notas:</strong> ${sale.notes}</p>` : ''}
+      ${paymentInfo}
     </div>
     <div class="table-wrap">
       <table>
@@ -184,14 +211,52 @@ function openDetailModal(sale) {
 function closeDetailModal() {
     document.getElementById('sale-detail-modal').style.display = 'none';
 }
+function showPaymentModal(sale) {
+    const paymentLabel = sale.paymentMethod ? (PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod) : '';
+    const bankName = sale.paymentBankCode ? (BANKS.find((b) => b.code === sale.paymentBankCode)?.name || sale.paymentBankCode) : '';
+    const parts = [`Método de pago: ${paymentLabel || '—'}`];
+    if (sale.paymentBankCode && bankName)
+        parts.push(`Banco: ${bankName}`);
+    if (sale.paymentReference)
+        parts.push(`Referencia: ${String(sale.paymentReference).replace(/</g, '&lt;')}`);
+    if (sale.paymentCashReceived != null)
+        parts.push(`Efectivo recibido: ${sale.paymentMethod === 'efectivo_usd' ? '$' + Number(sale.paymentCashReceived).toFixed(2) + ' USD' : 'Bs ' + Number(sale.paymentCashReceived).toFixed(2)}`);
+    if (sale.paymentChangeUsd != null && sale.paymentChangeUsd > 0)
+        parts.push(`Cambio (USD): $${Number(sale.paymentChangeUsd).toFixed(2)}`);
+    if (sale.paymentChangeBs != null && sale.paymentChangeBs > 0)
+        parts.push(`Cambio (Bs): Bs ${Number(sale.paymentChangeBs).toFixed(2)}`);
+    const message = parts.join('\n');
+    if (typeof window.showAlert === 'function') {
+        window.showAlert({ title: `Venta #${sale.id} – Método de pago`, message, type: 'info', skipNotificationSeen: true });
+        return;
+    }
+    const root = document.getElementById('alert-modal-root');
+    if (root) {
+        root.innerHTML = `<div class="alert-modal-overlay" id="payment-info-overlay"><div class="alert-modal"><h3 class="alert-modal__title">Venta #${sale.id} – Método de pago</h3><p class="alert-modal__message" style="white-space: pre-line;">${message.replace(/</g, '&lt;')}</p><button type="button" class="btn btn--ghost" id="payment-info-close">Cerrar</button></div></div>`;
+        root.style.display = 'block';
+        document.getElementById('payment-info-close')?.addEventListener('click', () => { root.innerHTML = ''; root.style.display = 'none'; });
+        document.getElementById('payment-info-overlay')?.addEventListener('click', (ev) => { if (ev.target.id === 'payment-info-overlay') {
+            root.innerHTML = '';
+            root.style.display = 'none';
+        } });
+    }
+}
 document.getElementById('sales-tbody')?.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.btn-view-detail');
+    const target = e.target;
+    const btnDetail = target.closest('.btn-view-detail');
+    const btnPayment = target.closest('.btn-view-payment');
+    const btn = btnDetail || btnPayment;
     if (!btn)
         return;
     const id = Number(btn.getAttribute('data-sale-id'));
     try {
         const sale = await getJson(`/api/sales/${id}`);
-        openDetailModal(sale);
+        if (btnPayment) {
+            showPaymentModal(sale);
+        }
+        else {
+            openDetailModal(sale);
+        }
     }
     catch (_) {
         if (typeof window.showAlert === 'function')
@@ -220,33 +285,49 @@ document.getElementById('btn-clear-dates')?.addEventListener('click', () => {
         toEl.value = '';
     loadSalesList(false);
 });
-document.getElementById('btn-print-sales')?.addEventListener('click', async () => {
-    if (typeof window.openPrintWindow !== 'function') return;
-    try {
-        const fromEl = document.getElementById('filter-from');
-        const toEl = document.getElementById('filter-to');
-        const from = fromEl?.value?.trim();
-        const to = toEl?.value?.trim();
-        let sales;
-        if (from && to)
-            sales = await getJson(`/api/sales?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
-        else
-            sales = await getJson('/api/sales?limit=500');
-        const statusLabel = (st) => (st === 'anulada' ? 'Anulada' : st === 'completada' ? 'Completada' : st || '—');
-        let html = '<h1>Historial de ventas - KUMA</h1>';
-        if (from && to) html += '<p class="print-meta">Período: ' + from + ' a ' + to + '</p>';
-        html += '<table><thead><tr><th>ID</th><th>Estado</th><th>Fecha y hora</th><th>Tasa Bs/USD</th><th>Total USD</th><th>Total Bs</th><th>Items</th><th>Cliente</th></tr></thead><tbody>';
-        (sales || []).forEach((s) => {
-            const cliente = (s.clientName && String(s.clientName).trim()) ? String(s.clientName).replace(/</g, '&lt;') : '—';
-            html += '<tr><td>#' + s.id + '</td><td>' + statusLabel(s.status) + '</td><td>' + formatDateTime(s.createdAt) + '</td><td>' + Number(s.exchangeRate).toFixed(2) + '</td><td>$' + Number(s.totalUsd).toFixed(2) + '</td><td>Bs ' + Number(s.totalBs).toFixed(2) + '</td><td>' + (s.itemCount ?? '—') + '</td><td>' + cliente + '</td></tr>';
-        });
-        html += '</tbody></table>';
-        window.openPrintWindow('Historial de ventas - KUMA', html);
-    } catch (e) {
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al cargar ventas para imprimir.', type: 'error' });
-        else alert('Error al cargar ventas.');
+function getSalesToPrint() {
+    const q = document.getElementById('sale-search')?.value.trim() || '';
+    if (!q)
+        return allSales;
+    return allSales.filter((s) => String(s.id).includes(q));
+}
+document.getElementById('btn-print-sales')?.addEventListener('click', () => {
+    const sales = getSalesToPrint();
+    if (sales.length === 0) {
+        if (typeof window.showAlert === 'function') {
+            window.showAlert({ title: 'Aviso', message: 'No hay ventas para imprimir.', type: 'warning' });
+        }
+        else {
+            alert('No hay ventas para imprimir.');
+        }
+        return;
     }
+    const openPrintWindow = window.openPrintWindow;
+    if (typeof openPrintWindow !== 'function') {
+        if (typeof window.showAlert === 'function') {
+            window.showAlert({ title: 'Error', message: 'No se pudo abrir la ventana de impresión.', type: 'error' });
+        }
+        else {
+            alert('No se pudo abrir la ventana de impresión.');
+        }
+        return;
+    }
+    const tableRows = sales
+        .map((s) => `<tr>
+          <td>#${s.id}</td>
+          <td>${getStatusLabel(s.status)}</td>
+          <td>${formatDateTime(s.createdAt)}</td>
+          <td>${Number(s.exchangeRate).toFixed(2)}</td>
+          <td>$${Number(s.totalUsd).toFixed(2)}</td>
+          <td>Bs ${Number(s.totalBs).toFixed(2)}</td>
+          <td>${s.itemCount ?? '-'}</td>
+          <td>${(s.clientName || '—').replace(/</g, '&lt;')}</td>
+        </tr>`)
+        .join('');
+    const html = '<h1>Historial de ventas</h1>' +
+        '<table><thead><tr><th>ID</th><th>Estado</th><th>Fecha y hora</th><th>Tasa (Bs/USD)</th><th>Total USD</th><th>Total Bs</th><th>Items</th><th>Cliente</th></tr></thead><tbody>' +
+        tableRows +
+        '</tbody></table>';
+    openPrintWindow('Historial de ventas', html);
 });
 loadSalesList(false);
-export {};

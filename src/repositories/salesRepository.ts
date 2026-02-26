@@ -7,7 +7,11 @@ interface MovementRow { productId: number; quantity: number; previousQuantity: n
 
 export class SalesRepository {
   async createSale(
-    sale: { totalUsd: number; totalBs: number; exchangeRate: number; discountPercent?: number; notes?: string; clientId?: number | null },
+    sale: {
+      totalUsd: number; totalBs: number; exchangeRate: number; discountPercent?: number; notes?: string; clientId?: number | null;
+      paymentMethod?: string | null; paymentBankCode?: string | null; paymentReference?: string | null;
+      paymentCashReceived?: number | null; paymentChangeUsd?: number | null; paymentChangeBs?: number | null;
+    },
     items: { productId: number; quantity: number; unitPriceUsd: number; subtotalUsd: number }[],
     productUpdates: ProductUpdate[],
     movements: MovementRow[]
@@ -15,14 +19,20 @@ export class SalesRepository {
     return runTransaction(async (db) => {
       const createdAt = getVenezuelaNow();
       const saleResult = await db.run(
-        `INSERT INTO sales (totalUsd, totalBs, exchangeRate, discountPercent, notes, status, clientId, createdAt)
-         VALUES (?, ?, ?, ?, ?, 'completada', ?, ?)`,
+        `INSERT INTO sales (totalUsd, totalBs, exchangeRate, discountPercent, notes, status, clientId, paymentMethod, paymentBankCode, paymentReference, paymentCashReceived, paymentChangeUsd, paymentChangeBs, createdAt)
+         VALUES (?, ?, ?, ?, ?, 'completada', ?, ?, ?, ?, ?, ?, ?, ?)`,
         sale.totalUsd,
         sale.totalBs,
         sale.exchangeRate,
         sale.discountPercent ?? 0,
         sale.notes ?? null,
         sale.clientId ?? null,
+        sale.paymentMethod ?? null,
+        sale.paymentBankCode ?? null,
+        sale.paymentReference ?? null,
+        sale.paymentCashReceived ?? null,
+        sale.paymentChangeUsd ?? null,
+        sale.paymentChangeBs ?? null,
         createdAt
       );
       const saleId = saleResult.lastID!;

@@ -39,7 +39,6 @@
         <a class="topbar__link" href="/pages/inventory.html">Inventario</a>
         <a class="topbar__link" href="/pages/sales-history.html">Ventas</a>
         <a class="topbar__link" href="/pages/reports.html">Reportes</a>
-        <a class="topbar__link" href="/pages/entries.html">Entrada</a>
         <a class="topbar__link" href="/pages/clients.html">Clientes</a>
         <a class="topbar__link" href="/pages/settings.html">Configuración</a>
       </nav>
@@ -49,8 +48,8 @@
       <div class="pos-layout">
         <section class="pos-products">
           <div class="pos-products__search">
-            <input type="text" id="pos-search-input" placeholder="Buscar por código de barras, SKU, ID o nombre... (Enter para añadir)" class="form-group" style="min-width:100%; padding: .6rem 1rem; margin-bottom: .5rem;" autocomplete="off" />
             <div class="form-row" style="align-items: center; gap: .5rem; flex-wrap: wrap;">
+              <input type="text" id="pos-search-input" placeholder="Buscar por código de barras, SKU, ID o nombre..." class="form-group" style="min-width:50%; padding: .6rem 1rem; margin-top: 20px;" autocomplete="off" />
               <div class="form-group" style="margin: 0;">
                 <label for="pos-quantity" class="text-muted">Cantidad a añadir</label>
                 <input type="number" id="pos-quantity" min="1" value="1" title="Cantidad" style="width: 5rem; padding: .4rem;" />
@@ -64,6 +63,7 @@
             </div>
           </div>
           <div class="pos-products__list" id="product-grid"></div>
+          <div class="pos-products__pagination" id="product-grid-pagination"></div>
         </section>
         <aside class="cart">
           <div class="cart__header">Carrito</div>
@@ -100,11 +100,64 @@
       if (e.key === '3') { e.preventDefault(); location.href = '/pages/inventory.html'; }
       if (e.key === '4') { e.preventDefault(); location.href = '/pages/sales-history.html'; }
       if (e.key === '5') { e.preventDefault(); location.href = '/pages/reports.html'; }
-      if (e.key === '6') { e.preventDefault(); location.href = '/pages/entries.html'; }
-      if (e.key === '7') { e.preventDefault(); location.href = '/pages/clients.html'; }
+      if (e.key === '6') { e.preventDefault(); location.href = '/pages/clients.html'; }
       if (e.key === '8') { e.preventDefault(); location.href = '/pages/settings.html'; }
     });
   </script>
+  <div id="pos-payment-modal" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 26rem;">
+      <h2 class="modal__title">Método de pago</h2>
+      <form id="pos-payment-form">
+        <div class="form-group">
+          <label for="payment-method">Método de pago *</label>
+          <select id="payment-method" required>
+            <option value="">Seleccione...</option>
+            <option value="pago_movil">Pago Móvil</option>
+            <option value="tarjeta_debito">Tarjeta de Débito</option>
+            <option value="efectivo_usd">Efectivo USD</option>
+            <option value="efectivo_bs">Efectivo Bs</option>
+          </select>
+        </div>
+        <div id="payment-bank-ref" style="display: none;">
+          <div class="form-group">
+            <label for="payment-bank-search">Buscar banco</label>
+            <input type="text" id="payment-bank-search" placeholder="Buscar por código o nombre..." autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="payment-bank">Banco *</label>
+            <select id="payment-bank">
+              <option value="">Seleccione el banco...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="payment-reference">Referencia de transacción *</label>
+            <input type="text" id="payment-reference" placeholder="Ej: 12345678" maxlength="50" />
+          </div>
+        </div>
+        <div id="payment-cash-usd" style="display: none;">
+          <div class="form-group">
+            <label for="payment-cash-received-usd">Efectivo recibido (USD) *</label>
+            <input type="number" id="payment-cash-received-usd" min="0" step="0.01" placeholder="0.00" />
+          </div>
+          <p class="text-muted" style="margin: 0 0 0.5rem;"><strong>Total a pagar:</strong> <span id="payment-total-usd-display">0.00</span> USD</p>
+          <p class="text-muted" style="margin: 0 0 0.5rem;"><strong>Cambio (USD):</strong> <span id="payment-change-usd-display">0.00</span></p>
+          <p class="text-muted" style="margin: 0 0 1rem;"><strong>Cambio (Bs):</strong> <span id="payment-change-bs-display">0.00</span></p>
+        </div>
+        <div id="payment-cash-bs" style="display: none;">
+          <div class="form-group">
+            <label for="payment-cash-received-bs">Efectivo recibido (Bs) *</label>
+            <input type="number" id="payment-cash-received-bs" min="0" step="0.01" placeholder="0.00" />
+          </div>
+          <p class="text-muted" style="margin: 0 0 0.5rem;"><strong>Total a pagar:</strong> <span id="payment-total-bs-display">0.00</span> Bs</p>
+          <p class="text-muted" style="margin: 0 0 1rem;"><strong>Cambio (Bs):</strong> <span id="payment-change-bs-only-display">0.00</span></p>
+        </div>
+        <div class="form-row" style="justify-content: flex-end; gap: .5rem; margin-top: 1rem;">
+          <button type="button" class="btn btn--ghost" id="pos-payment-cancel">Cancelar</button>
+          <button type="submit" class="btn btn--primary" id="pos-payment-submit">Confirmar venta</button>
+        </div>
+      </form>
+    </div>
+  </div>
   <div id="pos-new-client-modal" class="overlay" style="display: none; align-items: center; justify-content: center;">
     <div class="modal" style="max-width: 28rem;">
       <h2 class="modal__title">Nuevo cliente</h2>

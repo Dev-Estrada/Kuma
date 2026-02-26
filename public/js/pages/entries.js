@@ -23,11 +23,64 @@ function formatDateTime(s) {
   return d.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+function showEntryProductResults(list) {
+  const container = document.getElementById('entry-product-results');
+  if (!container) return;
+  if (!list || list.length === 0) {
+    container.classList.remove('is-visible');
+    container.innerHTML = '';
+    container.setAttribute('aria-hidden', 'true');
+    return;
+  }
+  container.setAttribute('aria-hidden', 'false');
+  container.classList.add('is-visible');
+  container.innerHTML = list
+    .map(
+      (p) =>
+        '<div class="entry-product-item" data-product-id="' +
+        p.id +
+        '" role="button" tabindex="0"><span class="entry-product-item__name">' +
+        (p.name || 'Sin nombre').replace(/</g, '&lt;') +
+        '</span><span class="entry-product-item__meta">SKU: ' +
+        (p.sku || '—').replace(/</g, '&lt;') +
+        ' · ID: ' +
+        p.id +
+        ' · Stock: ' +
+        (p.quantity ?? 0) +
+        '</span></div>'
+    )
+    .join('');
+  container.querySelectorAll('.entry-product-item').forEach((el) => {
+    el.addEventListener('click', function () {
+      const id = parseInt(this.getAttribute('data-product-id'), 10);
+      const p = allProducts.find((x) => x.id === id);
+      if (p) selectEntryProduct(p);
+    });
+  });
+}
+
+function selectEntryProduct(p) {
+  selectedProduct = p;
+  document.getElementById('entry-product-id').value = p.id;
+  document.getElementById('entry-product-picked').innerHTML =
+    '<strong>' +
+    (p.name || '').replace(/</g, '&lt;') +
+    '</strong> · SKU: ' +
+    (p.sku || '').replace(/</g, '&lt;') +
+    ' · Stock actual: ' +
+    (p.quantity ?? 0);
+  document.getElementById('entry-product-search').value = p.name || p.sku || '';
+  document.getElementById('entry-product-results').classList.remove('is-visible');
+  document.getElementById('entry-product-results').innerHTML = '';
+  document.getElementById('entry-product-results').setAttribute('aria-hidden', 'true');
+}
+
 document.getElementById('entry-product-search')?.addEventListener('input', (e) => {
   const q = e.target.value.trim();
   document.getElementById('entry-product-id').value = '';
   selectedProduct = null;
   document.getElementById('entry-product-picked').textContent = '';
+  showEntryProductResults([]);
   if (!q) {
     allProducts = [];
     return;
@@ -35,30 +88,38 @@ document.getElementById('entry-product-search')?.addEventListener('input', (e) =
   if (productSearchDebounce) clearTimeout(productSearchDebounce);
   productSearchDebounce = setTimeout(async () => {
     try {
-      const list = await getJson(`/api/products/pos-search?q=${encodeURIComponent(q)}&limit=20`);
-      allProducts = list;
-      if (list.length === 1 && (list[0].name || '').toLowerCase() === q.toLowerCase() || String(list[0].id) === q || (list[0].sku || '') === q) {
-        selectedProduct = list[0];
-        document.getElementById('entry-product-id').value = selectedProduct.id;
-        document.getElementById('entry-product-picked').innerHTML = `<strong>${(selectedProduct.name || '').replace(/</g, '&lt;')}</strong> · SKU: ${(selectedProduct.sku || '').replace(/</g, '&lt;')} · Stock actual: ${selectedProduct.quantity ?? 0}`;
-      } else if (list.length > 1) {
-        document.getElementById('entry-product-picked').textContent = `${list.length} producto(s) encontrado(s). Selecciona uno o escribe más para filtrar.`;
-      } else if (list.length === 0) {
+      const list = await getJson(`/api/products/pos-search?q=${encodeURIComponent(q)}&limit=50`);
+      allProducts = list || [];
+      if (allProducts.length === 0) {
         document.getElementById('entry-product-picked').textContent = 'Ningún producto encontrado.';
+        showEntryProductResults([]);
+        return;
+      }
+      showEntryProductResults(allProducts);
+      if (allProducts.length === 1 && (q === String(allProducts[0].id) || (allProducts[0].sku || '') === q || (allProducts[0].name || '').toLowerCase() === q.toLowerCase())) {
+        selectEntryProduct(allProducts[0]);
+      } else {
+        document.getElementById('entry-product-picked').textContent = allProducts.length + ' producto(s) encontrado(s). Haz clic en uno para seleccionarlo.';
       }
     } catch (_) {
       document.getElementById('entry-product-picked').textContent = 'Error al buscar.';
+      showEntryProductResults([]);
     }
   }, 200);
 });
 
 document.getElementById('entry-product-search')?.addEventListener('blur', () => {
-  if (allProducts.length === 1 && !selectedProduct) {
-    selectedProduct = allProducts[0];
-    document.getElementById('entry-product-id').value = selectedProduct.id;
-    document.getElementById('entry-product-picked').innerHTML = `<strong>${(selectedProduct.name || '').replace(/</g, '&lt;')}</strong> · SKU: ${(selectedProduct.sku || '').replace(/</g, '&lt;')} · Stock actual: ${selectedProduct.quantity ?? 0}`;
-    document.getElementById('entry-product-search').value = selectedProduct.name || selectedProduct.sku || '';
-  }
+  setTimeout(() => {
+    const res = document.getElementById('entry-product-results');
+    if (res) res.classList.remove('is-visible');
+    if (allProducts.length === 1 && !selectedProduct) {
+      selectedProduct = allProducts[0];
+      document.getElementById('entry-product-id').value = selectedProduct.id;
+      document.getElementById('entry-product-picked').innerHTML =
+        '<strong>' + (selectedProduct.name || '').replace(/</g, '&lt;') + '</strong> · SKU: ' + (selectedProduct.sku || '').replace(/</g, '&lt;') + ' · Stock actual: ' + (selectedProduct.quantity ?? 0);
+      document.getElementById('entry-product-search').value = selectedProduct.name || selectedProduct.sku || '';
+    }
+  }, 150);
 });
 
 document.getElementById('btn-submit-entry')?.addEventListener('click', async () => {

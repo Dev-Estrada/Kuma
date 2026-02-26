@@ -1,12 +1,51 @@
 const API = '';
-(function hideAdminOnlySettings() {
-    const user = typeof window.getAuthUser === 'function' ? window.getAuthUser() : null;
-    if (!user || user.role !== 'admin') {
-        document.querySelectorAll('.settings-card--admin-only').forEach(function (el) {
-            el.style.display = 'none';
-        });
+const ROWS_PER_PAGE = 7;
+let rateHistoryData = [];
+let currentRateHistoryPage = 1;
+function applyAdminOnlyVisibility() {
+    const getAuthUser = window.getAuthUser;
+    const user = typeof getAuthUser === 'function' ? getAuthUser() : null;
+    const isAdmin = user && user.role === 'admin';
+    document.querySelectorAll('.settings-btn--admin-only').forEach((el) => {
+        el.style.display = isAdmin ? '' : 'none';
+    });
+}
+
+function openSettingsModal(modalId, onOpen) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+        if (typeof onOpen === 'function')
+            onOpen();
     }
-})();
+}
+function closeSettingsModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal)
+        modal.style.display = 'none';
+}
+
+document.getElementById('btn-settings-appearance')?.addEventListener('click', () => openSettingsModal('settings-modal-appearance'));
+document.getElementById('btn-settings-rate')?.addEventListener('click', () => openSettingsModal('settings-modal-rate', () => loadRate()));
+document.getElementById('btn-settings-backup')?.addEventListener('click', () => openSettingsModal('settings-modal-backup'));
+document.getElementById('btn-settings-restore')?.addEventListener('click', () => openSettingsModal('settings-modal-restore'));
+document.getElementById('btn-settings-demo')?.addEventListener('click', () => openSettingsModal('settings-modal-demo'));
+document.getElementById('btn-settings-delete-db')?.addEventListener('click', () => openSettingsModal('settings-modal-delete-db'));
+document.getElementById('btn-settings-auto-backup')?.addEventListener('click', () => openSettingsModal('settings-modal-auto-backup'));
+
+document.querySelectorAll('[data-settings-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+        const modalId = btn.getAttribute('data-settings-close');
+        if (modalId)
+            closeSettingsModal(modalId);
+    });
+});
+['settings-modal-appearance', 'settings-modal-rate', 'settings-modal-backup', 'settings-modal-restore', 'settings-modal-demo', 'settings-modal-delete-db', 'settings-modal-auto-backup'].forEach((modalId) => {
+    document.getElementById(modalId)?.addEventListener('click', (e) => {
+        if (e.target && e.target.id === modalId)
+            closeSettingsModal(modalId);
+    });
+});
 async function getJson(url) {
     const res = await fetch(`${API}${url}`);
     if (!res.ok)
@@ -60,54 +99,67 @@ async function loadRate() {
     const r = await getJson('/api/settings/exchange-rate');
     document.getElementById('exchange-rate').value = String(r.exchangeRate);
 }
-const ROWS_PER_PAGE = 7;
-let rateHistoryList = [];
-let rateHistoryPage = 1;
 function renderRateHistoryPagination(containerId, totalItems, currentPage, onPageChange) {
     const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
     const el = document.getElementById(containerId);
-    if (!el) return;
-    if (totalItems === 0) { el.innerHTML = ''; return; }
-    const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
-    const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
-    el.innerHTML = '<span class="table-pagination__range">Mostrando ' + start + '-' + end + ' de ' + totalItems + '</span><div class="table-pagination__nav"><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-prev"' + (currentPage <= 1 ? ' disabled' : '') + '>Anterior</button><span>Página ' + currentPage + ' de ' + totalPages + '</span><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-next"' + (currentPage >= totalPages ? ' disabled' : '') + '>Siguiente</button></div>';
-    document.getElementById(containerId + '-prev')?.addEventListener('click', function () { if (currentPage > 1) onPageChange(currentPage - 1); });
-    document.getElementById(containerId + '-next')?.addEventListener('click', function () { if (currentPage < totalPages) onPageChange(currentPage + 1); });
-}
-function renderRateHistory(history, page) {
-    const tbody = document.getElementById('rate-history-tbody');
-    const msg = document.getElementById('rate-history-msg');
-    if (!history.length) {
-        msg.textContent = 'Aún no hay cambios de tasa registrados. Al guardar una tasa se creará el historial.';
-        tbody.innerHTML = '';
-        document.getElementById('rate-history-pagination').innerHTML = '';
+    if (!el)
+        return;
+    if (totalItems === 0) {
+        el.innerHTML = '';
         return;
     }
-    msg.textContent = '';
-    const totalPages = Math.ceil(history.length / ROWS_PER_PAGE) || 1;
-    const p = Math.max(1, Math.min(page || 1, totalPages));
-    const slice = history.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
+    const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
+    const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+    el.innerHTML =
+        `<span class="table-pagination__range">Mostrando ${start}-${end} de ${totalItems}</span>` +
+            `<div class="table-pagination__nav">` +
+            `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-prev" ${currentPage <= 1 ? ' disabled' : ''}>Anterior</button>` +
+            `<span>Página ${currentPage} de ${totalPages}</span>` +
+            `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-next" ${currentPage >= totalPages ? ' disabled' : ''}>Siguiente</button>` +
+            `</div>`;
+    document.getElementById(`${containerId}-prev`)?.addEventListener('click', () => { if (currentPage > 1)
+        onPageChange(currentPage - 1); });
+    document.getElementById(`${containerId}-next`)?.addEventListener('click', () => { if (currentPage < totalPages)
+        onPageChange(currentPage + 1); });
+}
+function renderRateHistoryPage(page) {
+    const tbody = document.getElementById('rate-history-tbody');
+    const totalPages = Math.ceil(rateHistoryData.length / ROWS_PER_PAGE) || 1;
+    const p = Math.max(1, Math.min(page, totalPages));
+    const slice = rateHistoryData.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
     tbody.innerHTML = slice
-        .map((row) => '<tr><td>' + formatDateTime(row.createdAt) + '</td><td><strong>' + Number(row.rate).toFixed(2) + '</strong></td><td class="text-muted">' + (row.notes || '—') + '</td></tr>')
+        .map((row) => `<tr>
+          <td>${formatDateTime(row.createdAt)}</td>
+          <td><strong>${Number(row.rate).toFixed(2)}</strong></td>
+          <td class="text-muted">${row.notes || '—'}</td>
+        </tr>`)
         .join('');
-    renderRateHistoryPagination('rate-history-pagination', history.length, p, function (newPage) {
-        rateHistoryPage = newPage;
-        renderRateHistory(rateHistoryList, newPage);
+    renderRateHistoryPagination('rate-history-pagination', rateHistoryData.length, p, (newPage) => {
+        currentRateHistoryPage = newPage;
+        renderRateHistoryPage(newPage);
     });
 }
 async function loadRateHistory() {
     const tbody = document.getElementById('rate-history-tbody');
     const msg = document.getElementById('rate-history-msg');
+    const paginationEl = document.getElementById('rate-history-pagination');
     try {
         const history = await getJson('/api/settings/exchange-rate-history?limit=100');
-        rateHistoryList = history;
-        rateHistoryPage = 1;
-        renderRateHistory(history, 1);
+        rateHistoryData = history;
+        currentRateHistoryPage = 1;
+        if (history.length === 0) {
+            msg.textContent = 'Aún no hay cambios de tasa registrados. Al guardar una tasa se creará el historial.';
+            tbody.innerHTML = '';
+            paginationEl.innerHTML = '';
+            return;
+        }
+        msg.textContent = '';
+        renderRateHistoryPage(1);
     }
     catch (e) {
         msg.textContent = 'Error al cargar el historial.';
         tbody.innerHTML = '';
-        document.getElementById('rate-history-pagination').innerHTML = '';
+        paginationEl.innerHTML = '';
     }
 }
 async function saveRate() {
@@ -213,24 +265,19 @@ if (restoreFile && btnRestore && restoreMsg) {
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
-                const msg = data.message || 'Listo. Reinicie el servidor para completar la restauración.';
-                restoreMsg.textContent = msg;
+                restoreMsg.textContent = data.message || 'Listo. Reinicie el servidor para completar la restauración.';
                 restoreMsg.className = 'msg msg--success mt-1 mb-0';
                 restoreFile.value = '';
                 btnRestore.setAttribute('disabled', 'true');
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: msg, type: 'success' });
             }
             else {
-                const errMsg = data.error || 'Error al restaurar.';
-                restoreMsg.textContent = errMsg;
+                restoreMsg.textContent = data.error || 'Error al restaurar.';
                 restoreMsg.className = 'msg msg--error mt-1 mb-0';
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: errMsg, type: 'error' });
             }
         }
         catch (e) {
             restoreMsg.textContent = 'Error de conexión.';
             restoreMsg.className = 'msg msg--error mt-1 mb-0';
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
         }
     });
 }
@@ -245,22 +292,17 @@ if (btnRestoreDemo && restoreDemoMsg) {
             const res = await fetch(`${API}/api/backup/restore-demo`, { method: 'POST' });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
-                const msg = data.message || 'Reinicie el servidor para cargar la base de demostración.';
-                restoreDemoMsg.textContent = msg;
+                restoreDemoMsg.textContent = data.message || 'Reinicie el servidor para cargar la base de demostración.';
                 restoreDemoMsg.className = 'msg msg--success mt-1 mb-0';
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: msg, type: 'success' });
             }
             else {
-                const errMsg = data.error || 'Error. Asegúrese de que demoBD.db exista (ejecute: node scripts/create-demo-db.js).';
-                restoreDemoMsg.textContent = errMsg;
+                restoreDemoMsg.textContent = data.error || 'Error. Asegúrese de que demoBD.db exista (ejecute: node scripts/create-demo-db.js).';
                 restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: errMsg, type: 'error' });
             }
         }
         catch (e) {
             restoreDemoMsg.textContent = 'Error de conexión.';
             restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
         }
     });
 }
@@ -277,46 +319,22 @@ if (btnDeleteDb && deleteDbMsg) {
             const res = await fetch(`${API}/api/backup/delete-database`, { method: 'POST' });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
-                const msg = data.message || 'Base de datos eliminada. Recargando…';
-                deleteDbMsg.textContent = msg;
+                deleteDbMsg.textContent = data.message || 'Base de datos eliminada. Recargando…';
                 deleteDbMsg.className = 'msg msg--success mt-1 mb-0';
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: msg, type: 'success' });
                 setTimeout(() => window.location.replace('/login.html'), 2000);
             }
             else {
-                const errMsg = data.error || 'Error al eliminar.';
-                deleteDbMsg.textContent = errMsg;
+                deleteDbMsg.textContent = data.error || 'Error al eliminar.';
                 deleteDbMsg.className = 'msg msg--error mt-1 mb-0';
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: errMsg, type: 'error' });
             }
         }
         catch (e) {
             deleteDbMsg.textContent = 'Error de conexión.';
             deleteDbMsg.className = 'msg msg--error mt-1 mb-0';
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
         }
     });
 }
-document.getElementById('btn-print-settings')?.addEventListener('click', async () => {
-    if (typeof window.openPrintWindow !== 'function') return;
-    try {
-        const [rateRes, history] = await Promise.all([
-            getJson('/api/settings/exchange-rate'),
-            getJson('/api/settings/exchange-rate-history').catch(() => []),
-        ]);
-        let html = '<h1>Configuración - KUMA</h1><h2>Tasa de cambio (USD → Bs)</h2><p><strong>Tasa actual:</strong> ' + Number(rateRes?.exchangeRate ?? 0).toFixed(2) + ' Bs por 1 USD</p>';
-        html += '<h2>Historial de tasas</h2><table><thead><tr><th>Fecha</th><th>Tasa (Bs/USD)</th><th>Notas</th></tr></thead><tbody>';
-        (Array.isArray(history) ? history : []).forEach((row) => {
-            html += '<tr><td>' + formatDateTime(row.createdAt) + '</td><td>' + Number(row.rate).toFixed(2) + '</td><td>' + (row.notes || '—').replace(/</g, '&lt;') + '</td></tr>';
-        });
-        html += '</tbody></table>';
-        window.openPrintWindow('Configuración - KUMA', html);
-    } catch (e) {
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al cargar la configuración.', type: 'error' });
-        else alert('Error al cargar la configuración.');
-    }
-});
+applyAdminOnlyVisibility();
 loadRate();
 loadRateHistory();
 export {};

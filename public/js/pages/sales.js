@@ -1,7 +1,11 @@
+import { BANKS } from '../shared/banks';
 const API = '';
 let products = [];
 let cart = [];
 let exchangeRate = 36.5;
+const PRODUCT_GRID_PAGE_SIZE = 12;
+let productGridPage = 1;
+let currentProductList = [];
 async function getJson(url) {
     const res = await fetch(`${API}${url}`);
     if (!res.ok)
@@ -20,20 +24,40 @@ async function loadProducts() {
     products.sort((a, b) => (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0));
     renderProductGrid(products);
 }
-function renderProductGrid(list) {
+function renderProductGrid(list, resetPage = true) {
     const grid = document.getElementById('product-grid');
-    const withStock = list.filter((p) => (p.quantity ?? 0) > 0);
+    const paginationEl = document.getElementById('product-grid-pagination');
+    const withStock = (list || []).filter((p) => (p.quantity ?? 0) > 0);
+    currentProductList = withStock;
+    if (resetPage) productGridPage = 1;
     if (withStock.length === 0) {
         grid.innerHTML = '<div class="product-grid__empty">No hay productos con stock disponible. Revisa el inventario.</div>';
+        if (paginationEl) paginationEl.innerHTML = '';
         return;
     }
-    grid.innerHTML = withStock
+    const totalPages = Math.max(1, Math.ceil(withStock.length / PRODUCT_GRID_PAGE_SIZE));
+    if (productGridPage > totalPages) productGridPage = totalPages;
+    const start = (productGridPage - 1) * PRODUCT_GRID_PAGE_SIZE;
+    const pageItems = withStock.slice(start, start + PRODUCT_GRID_PAGE_SIZE);
+    grid.innerHTML = pageItems
         .map((p) => `<div class="product-tile" data-id="${p.id}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-sku="${(p.sku || '').replace(/"/g, '&quot;')}" data-price="${p.listPrice ?? 0}" data-qty="${p.quantity ?? 0}">
           <div class="product-tile__name">${p.isFavorite ? '★ ' : ''}${p.name || p.sku}</div>
           <div class="product-tile__meta">${p.sku} · Stock: ${p.quantity ?? 0}</div>
           <div class="product-tile__price">$${(p.listPrice ?? 0).toFixed(2)} USD</div>
         </div>`)
         .join('');
+    if (withStock.length > PRODUCT_GRID_PAGE_SIZE && paginationEl) {
+        paginationEl.innerHTML = '<span class="pos-products__pagination-range">' + (start + 1) + '-' + (start + pageItems.length) + ' de ' + withStock.length + '</span>' +
+            '<div class="pos-products__pagination-nav">' +
+            '<button type="button" class="btn btn--ghost btn--sm product-grid-prev" ' + (productGridPage <= 1 ? ' disabled' : '') + '>Anterior</button>' +
+            '<span>Pág. ' + productGridPage + ' / ' + totalPages + '</span>' +
+            '<button type="button" class="btn btn--ghost btn--sm product-grid-next" ' + (productGridPage >= totalPages ? ' disabled' : '') + '>Siguiente</button>' +
+            '</div>';
+        paginationEl.querySelector('.product-grid-prev')?.addEventListener('click', () => { productGridPage = Math.max(1, productGridPage - 1); renderProductGrid(currentProductList, false); });
+        paginationEl.querySelector('.product-grid-next')?.addEventListener('click', () => { productGridPage = Math.min(totalPages, productGridPage + 1); renderProductGrid(currentProductList, false); });
+    } else if (paginationEl) {
+        paginationEl.innerHTML = '';
+    }
 }
 function getAvailableForProduct(productId) {
     const product = products.find((p) => p.id === productId);
@@ -51,11 +75,13 @@ function renderCart() {
     totalsSection.style.display = 'block';
     container.innerHTML = cart
         .map((line) => {
+        const unitBs = Math.round(line.unitPriceUsd * exchangeRate * 100) / 100;
+        const subtotalBs = Math.round(line.subtotalUsd * exchangeRate * 100) / 100;
         const canIncrease = getAvailableForProduct(line.productId) > 0;
         return `<div class="cart-item" data-product-id="${line.productId}">
           <div class="cart-item__info">
             <div class="cart-item__name">${line.name}</div>
-            <div class="cart-item__qty">$${line.unitPriceUsd.toFixed(2)} c/u</div>
+            <div class="cart-item__qty">$${line.unitPriceUsd.toFixed(2)} <span class="cart-item__qty-bs">(Bs ${unitBs.toFixed(2)})</span> c/u</div>
           </div>
           <div class="cart-item__controls">
             <button type="button" class="cart-item__btn cart-qty-minus" title="Quitar 1" aria-label="Menos uno">−</button>
@@ -63,7 +89,7 @@ function renderCart() {
             <button type="button" class="cart-item__btn cart-qty-plus" title="Agregar 1" aria-label="Más uno" ${canIncrease ? '' : 'disabled'}>+</button>
           </div>
           <div class="cart-item__right">
-            <span class="cart-item__subtotal">$${line.subtotalUsd.toFixed(2)}</span>
+            <span class="cart-item__subtotal">$${line.subtotalUsd.toFixed(2)} <span class="cart-item__subtotal-bs">(Bs ${subtotalBs.toFixed(2)})</span></span>
             <button type="button" class="btn btn--sm btn--ghost remove-line" title="Quitar todo">Quitar</button>
           </div>
         </div>`;
@@ -161,44 +187,153 @@ function showMsg(text, isError) {
         setTimeout(() => { el.style.display = 'none'; }, 4000);
     }
 }
-async function completeSale(retries = 1) {
+function getTotals() {
+    const discountInput = document.getElementById('sale-discount');
+    const discountPercent = Math.max(0, Math.min(100, parseFloat(discountInput?.value || '0') || 0));
+    const subtotalUsd = cart.reduce((s, l) => s + l.subtotalUsd, 0);
+    const totalUsd = Math.round(subtotalUsd * (1 - discountPercent / 100) * 100) / 100;
+    const totalBs = Math.round(totalUsd * exchangeRate * 100) / 100;
+    return { totalUsd, totalBs, discountPercent };
+}
+function openPaymentModal() {
     if (cart.length === 0) {
         showMsg('Añade al menos un producto al carrito.', true);
         return;
     }
-    const discountInput = document.getElementById('sale-discount');
-    const discountPercent = Math.max(0, Math.min(100, parseFloat(discountInput?.value || '0') || 0));
-    const clientIdEl = document.getElementById('pos-client-id');
-    const clientId = clientIdEl?.value?.trim() ? parseInt(clientIdEl.value, 10) : null;
-    const body = {
-        items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
-        discountPercent,
-        clientId: clientId && !isNaN(clientId) ? clientId : undefined,
+    const { totalUsd, totalBs, discountPercent } = getTotals();
+    const modal = document.getElementById('pos-payment-modal');
+    const methodSelect = document.getElementById('payment-method');
+    const bankRef = document.getElementById('payment-bank-ref');
+    const cashUsd = document.getElementById('payment-cash-usd');
+    const cashBs = document.getElementById('payment-cash-bs');
+    const bankSelect = document.getElementById('payment-bank');
+    const bankSearchInput = document.getElementById('payment-bank-search');
+    const refInput = document.getElementById('payment-reference');
+    const cashUsdInput = document.getElementById('payment-cash-received-usd');
+    const cashBsInput = document.getElementById('payment-cash-received-bs');
+    function fillBankSelect(filter) {
+        const q = (filter || '').trim().toLowerCase();
+        const list = q
+            ? BANKS.filter((b) => b.code.toLowerCase().includes(q) || b.name.toLowerCase().includes(q))
+            : BANKS;
+        bankSelect.innerHTML =
+            '<option value="">Seleccione el banco...</option>' +
+                list.map((b) => `<option value="${b.code}">${b.code} - ${b.name}</option>`).join('');
+    }
+    fillBankSelect('');
+    if (bankSearchInput)
+        bankSearchInput.value = '';
+    methodSelect.value = '';
+    refInput.value = '';
+    cashUsdInput.value = '';
+    cashBsInput.value = '';
+    bankRef.style.display = 'none';
+    cashUsd.style.display = 'none';
+    cashBs.style.display = 'none';
+    (document.getElementById('payment-total-usd-display')).textContent = totalUsd.toFixed(2);
+    (document.getElementById('payment-total-bs-display')).textContent = totalBs.toFixed(2);
+    (document.getElementById('payment-change-usd-display')).textContent = '0.00';
+    (document.getElementById('payment-change-bs-display')).textContent = '0.00';
+    (document.getElementById('payment-change-bs-only-display')).textContent = '0.00';
+    (document.getElementById('payment-total-bs-display')).textContent = totalBs.toFixed(2);
+    function updatePaymentUI() {
+        const method = methodSelect.value;
+        bankRef.style.display = method === 'pago_movil' || method === 'tarjeta_debito' ? 'block' : 'none';
+        cashUsd.style.display = method === 'efectivo_usd' ? 'block' : 'none';
+        cashBs.style.display = method === 'efectivo_bs' ? 'block' : 'none';
+        if (method === 'efectivo_usd') {
+            const received = parseFloat(cashUsdInput.value || '0') || 0;
+            const changeUsd = Math.max(0, Math.round((received - totalUsd) * 100) / 100);
+            const changeBs = Math.round(changeUsd * exchangeRate * 100) / 100;
+            (document.getElementById('payment-change-usd-display')).textContent = changeUsd.toFixed(2);
+            (document.getElementById('payment-change-bs-display')).textContent = changeBs.toFixed(2);
+        }
+        if (method === 'efectivo_bs') {
+            const received = parseFloat(cashBsInput.value || '0') || 0;
+            const changeBs = Math.max(0, Math.round((received - totalBs) * 100) / 100);
+            (document.getElementById('payment-change-bs-only-display')).textContent = changeBs.toFixed(2);
+        }
+    }
+    methodSelect.addEventListener('change', updatePaymentUI);
+    cashUsdInput.addEventListener('input', updatePaymentUI);
+    cashBsInput.addEventListener('input', updatePaymentUI);
+    modal.style.display = 'flex';
+    document.getElementById('pos-payment-cancel').onclick = () => {
+        modal.style.display = 'none';
     };
-    try {
-        const res = await fetch(`${API}/api/sales`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            showMsg(data.error || 'Error al registrar la venta', true);
+    document.getElementById('pos-payment-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const method = methodSelect.value;
+        if (!method) {
+            showMsg('Seleccione un método de pago.', true);
             return;
         }
-        showMsg(`Venta #${data.id} registrada. Total: $${data.totalUsd.toFixed(2)} USD / Bs ${data.totalBs.toFixed(2)}`, false);
-        clearCart();
-        loadProducts();
-    }
-    catch (e) {
-        if (retries > 0) {
-            showMsg('Sin conexión. Reintentando…', true);
-            setTimeout(() => completeSale(retries - 1), 1500);
+        const clientIdEl = document.getElementById('pos-client-id');
+        const clientId = clientIdEl?.value ? parseInt(clientIdEl.value, 10) : null;
+        const body = {
+            items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+            discountPercent: getTotals().discountPercent,
+            paymentMethod: method,
+        };
+        if (clientId != null && !isNaN(clientId))
+            body.clientId = clientId;
+        if (method === 'pago_movil' || method === 'tarjeta_debito') {
+            const bank = bankSelect.value?.trim();
+            const ref = refInput.value?.trim();
+            if (!ref) {
+                showMsg('Indique la referencia de la transacción.', true);
+                return;
+            }
+            body.paymentBankCode = bank || null;
+            body.paymentReference = ref;
         }
-        else {
+        if (method === 'efectivo_usd') {
+            const received = parseFloat(cashUsdInput.value || '0') || 0;
+            if (received < totalUsd) {
+                showMsg('El efectivo recibido no puede ser menor al total.', true);
+                return;
+            }
+            const changeUsd = Math.round((received - totalUsd) * 100) / 100;
+            const changeBs = Math.round(changeUsd * exchangeRate * 100) / 100;
+            body.paymentCashReceived = received;
+            body.paymentChangeUsd = changeUsd;
+            body.paymentChangeBs = changeBs;
+        }
+        if (method === 'efectivo_bs') {
+            const received = parseFloat(cashBsInput.value || '0') || 0;
+            if (received < totalBs) {
+                showMsg('El efectivo recibido no puede ser menor al total.', true);
+                return;
+            }
+            const changeBs = Math.round((received - totalBs) * 100) / 100;
+            body.paymentCashReceived = received;
+            body.paymentChangeBs = changeBs;
+        }
+        const submitBtn = document.getElementById('pos-payment-submit');
+        submitBtn.disabled = true;
+        try {
+            const res = await fetch(`${API}/api/sales`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showMsg(data.error || 'Error al registrar la venta', true);
+                return;
+            }
+            showMsg(`Venta #${data.id} registrada. Total: $${data.totalUsd.toFixed(2)} USD / Bs ${data.totalBs.toFixed(2)}`, false);
+            modal.style.display = 'none';
+            clearCart();
+            loadProducts();
+        }
+        catch (err) {
             showMsg('Sin conexión. Revisa la red y vuelve a intentar.', true);
         }
-    }
+        finally {
+            submitBtn.disabled = false;
+        }
+    };
 }
 document.getElementById('product-grid')?.addEventListener('click', (e) => {
     const tile = e.target.closest('.product-tile');
@@ -230,9 +365,8 @@ document.getElementById('cart-items')?.addEventListener('click', (e) => {
     }
 });
 document.getElementById('sale-discount')?.addEventListener('input', renderCart);
-document.getElementById('btn-complete')?.addEventListener('click', () => completeSale());
+document.getElementById('btn-complete')?.addEventListener('click', openPaymentModal);
 document.getElementById('btn-clear')?.addEventListener('click', clearCart);
-// ——— Buscador de productos (pos-search-input): filtrar lista y Enter para añadir por código/nombre
 const posSearchInput = document.getElementById('pos-search-input');
 if (posSearchInput) {
     posSearchInput.addEventListener('input', () => {
@@ -241,65 +375,166 @@ if (posSearchInput) {
             renderProductGrid(products);
             return;
         }
-        const filtered = products.filter((p) => {
-            const name = (p.name || '').toLowerCase();
-            const sku = (p.sku || '').toLowerCase();
-            const barcode = (p.barcode || '').toLowerCase();
-            const idStr = String(p.id || '');
-            return name.includes(q) || sku.includes(q) || barcode.includes(q) || idStr === q;
-        });
+        const filtered = products.filter((p) => (p.name || '').toLowerCase().includes(q) ||
+            (p.sku || '').toLowerCase().includes(q) ||
+            String(p.id) === q ||
+            (p.barcode || '').toLowerCase().includes(q));
         renderProductGrid(filtered);
     });
     posSearchInput.addEventListener('keydown', async (e) => {
         if (e.key !== 'Enter')
             return;
-        const query = posSearchInput.value.trim();
-        if (!query) {
-            e.preventDefault();
+        const raw = posSearchInput.value.trim();
+        if (!raw)
             return;
-        }
         e.preventDefault();
-        const want = getPosQuantity();
+        let p = null;
+        const idNum = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
         try {
-            const res = await fetch(`${API}/api/products/by-barcode?barcode=${encodeURIComponent(query)}`);
-            if (res.ok) {
-                const p = await res.json();
-                const available = (p.quantity ?? 0) - cart.reduce((s, l) => (l.productId === p.id ? s + l.quantity : s), 0);
-                const addQty = Math.min(want, available);
-                if (addQty <= 0) {
-                    showMsg('Sin stock disponible para este producto.', true);
-                    return;
-                }
-                addToCart(p.id, p.name || p.sku, p.sku || '', p.listPrice ?? 0, p.quantity ?? 0);
-                posSearchInput.value = '';
-                showMsg(`Añadido: ${p.name || p.sku} x${addQty}`, false);
-                return;
-            }
+            const res = await fetch(`${API}/api/products/by-barcode?barcode=${encodeURIComponent(raw)}`);
+            if (res.ok)
+                p = (await res.json());
         }
         catch (_) { }
-        const q = query.toLowerCase();
-        const match = products.find((p) => {
-            const name = (p.name || '').toLowerCase();
-            const sku = (p.sku || '').toLowerCase();
-            const idStr = String(p.id || '');
-            return idStr === q || sku === q || name === q || name.startsWith(q) || sku.startsWith(q);
-        });
-        if (match) {
-            const available = getAvailableForProduct(match.id);
-            const addQty = Math.min(want, available);
-            if (addQty <= 0) {
-                showMsg('Sin stock disponible para este producto.', true);
-                return;
-            }
-            addToCart(match.id, match.name || match.sku, match.sku || '', match.listPrice ?? 0, match.quantity ?? 0);
-            posSearchInput.value = '';
-            showMsg(`Añadido: ${match.name || match.sku} x${addQty}`, false);
+        if (!p && !isNaN(idNum))
+            p = products.find((x) => x.id === idNum) || null;
+        if (!p)
+            p = products.find((x) => (x.sku || '').toLowerCase() === raw.toLowerCase()) || null;
+        if (!p)
+            p = products.find((x) => (x.sku || '').toLowerCase().includes(raw.toLowerCase())) || null;
+        if (!p) {
+            showMsg('Producto no encontrado.', true);
+            return;
         }
-        else {
-            showMsg('No se encontró ningún producto con ese código o nombre.', true);
+        const available = (p.quantity ?? 0) - cart.reduce((s, l) => (l.productId === p.id ? s + l.quantity : s), 0);
+        const want = getPosQuantity();
+        const addQty = Math.min(want, available);
+        if (addQty <= 0) {
+            showMsg('Sin stock disponible para este producto.', true);
+            return;
         }
+        addToCart(p.id, p.name || p.sku, p.sku || '', p.listPrice ?? 0, p.quantity ?? 0);
+        posSearchInput.value = '';
+        renderProductGrid(products);
+        showMsg(`Añadido: ${p.name || p.sku} x${addQty}`, false);
     });
 }
+let clientSearchTimer = null;
+const posClientSearch = document.getElementById('pos-client-search');
+const posClientResults = document.getElementById('pos-client-results');
+const posClientId = document.getElementById('pos-client-id');
+function hideClientResults() {
+    if (posClientResults)
+        posClientResults.style.display = 'none';
+}
+function selectClient(clientId, clientName) {
+    if (posClientId)
+        posClientId.value = String(clientId);
+    if (posClientSearch)
+        posClientSearch.value = clientName;
+    hideClientResults();
+}
+function showNewClientModal() {
+    hideClientResults();
+    const modal = document.getElementById('pos-new-client-modal');
+    if (modal)
+        modal.style.display = 'flex';
+}
+if (posClientSearch && posClientResults) {
+    posClientSearch.addEventListener('input', () => {
+        if (posClientId)
+            posClientId.value = '';
+        const q = posClientSearch.value.trim();
+        if (clientSearchTimer != null)
+            window.clearTimeout(clientSearchTimer);
+        if (!q) {
+            posClientResults.innerHTML = '';
+            posClientResults.style.display = 'none';
+            return;
+        }
+        clientSearchTimer = window.setTimeout(async () => {
+            clientSearchTimer = null;
+            try {
+                const list = await getJson(`/api/clients/search?q=${encodeURIComponent(q)}`);
+                if (list.length === 0) {
+                    posClientResults.innerHTML = '<div class="pos-client-item pos-client-item--new" data-action="new"><span>No encontrado.</span> <button type="button" class="btn btn--sm btn--primary">Agregar nuevo cliente</button></div>';
+                }
+                else {
+                    posClientResults.innerHTML =
+                        list
+                            .map((c) => `<div class="pos-client-item" data-client-id="${c.id}" data-client-name="${(c.name || '').replace(/"/g, '&quot;')}"><span>${(c.name || '').replace(/</g, '&lt;')}</span>${c.document ? ` <span class="text-muted">${String(c.document).replace(/</g, '&lt;')}</span>` : ''}</div>`)
+                            .join('') +
+                            '<div class="pos-client-item pos-client-item--new" data-action="new"><button type="button" class="btn btn--sm btn--ghost">➕ Agregar nuevo cliente</button></div>';
+                }
+                posClientResults.style.display = 'block';
+                posClientResults.querySelectorAll('.pos-client-item').forEach((el) => {
+                    const action = el.getAttribute('data-action');
+                    const id = el.getAttribute('data-client-id');
+                    const name = el.getAttribute('data-client-name');
+                    if (action === 'new') {
+                        el.addEventListener('click', () => showNewClientModal());
+                    }
+                    else if (id && name) {
+                        el.addEventListener('click', () => selectClient(Number(id), name));
+                    }
+                });
+            }
+            catch (_) {
+                posClientResults.innerHTML = '<div class="pos-client-item text-muted">Error al buscar.</div>';
+                posClientResults.style.display = 'block';
+            }
+        }, 250);
+    });
+    posClientSearch.addEventListener('blur', () => {
+        setTimeout(hideClientResults, 150);
+    });
+}
+document.getElementById('pos-new-client-cancel')?.addEventListener('click', () => {
+    const modal = document.getElementById('pos-new-client-modal');
+    if (modal)
+        modal.style.display = 'none';
+});
+document.getElementById('pos-new-client-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('pos-new-client-name')?.value.trim();
+    if (!name)
+        return;
+    const payload = {
+        name,
+        document: document.getElementById('pos-new-client-document')?.value.trim() || undefined,
+        phone: document.getElementById('pos-new-client-phone')?.value.trim() || undefined,
+        email: document.getElementById('pos-new-client-email')?.value.trim() || undefined,
+        address: document.getElementById('pos-new-client-address')?.value.trim() || undefined,
+        notes: document.getElementById('pos-new-client-notes')?.value.trim() || undefined,
+    };
+    try {
+        const res = await fetch(`${API}/api/clients`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showMsg(data.error || 'Error al crear el cliente', true);
+            return;
+        }
+        const newId = data.id;
+        selectClient(newId, name);
+        const modal = document.getElementById('pos-new-client-modal');
+        if (modal)
+            modal.style.display = 'none';
+        document.getElementById('pos-new-client-name').value = '';
+        document.getElementById('pos-new-client-document').value = '';
+        document.getElementById('pos-new-client-phone').value = '';
+        document.getElementById('pos-new-client-email').value = '';
+        document.getElementById('pos-new-client-address').value = '';
+        document.getElementById('pos-new-client-notes').value = '';
+        showMsg(`Cliente "${name}" agregado y seleccionado.`, false);
+    }
+    catch (_) {
+        showMsg('Error de conexión al crear el cliente.', true);
+    }
+});
 async function loadLowStockBanner() {
     try {
         const low = await getJson('/api/products/low-stock');
@@ -315,142 +550,6 @@ async function loadLowStockBanner() {
     }
     catch (_) { }
 }
-// ——— Búsqueda de clientes y opción "Añadir nuevo cliente"
-let clientSearchTimeout = null;
-const posClientSearch = document.getElementById('pos-client-search');
-const posClientResults = document.getElementById('pos-client-results');
-const posClientId = document.getElementById('pos-client-id');
-
-function showClientResults(html) {
-    if (!posClientResults) return;
-    posClientResults.innerHTML = html;
-    posClientResults.style.display = html ? 'block' : 'none';
-}
-
-function selectClient(id, name) {
-    if (posClientId) posClientId.value = id ? String(id) : '';
-    if (posClientSearch) posClientSearch.value = name || '';
-    showClientResults('');
-}
-
-async function loadClientSearch(q) {
-    const qq = (q || '').trim();
-    if (!qq) {
-        showClientResults('');
-        return;
-    }
-    try {
-        const list = await getJson(`/api/clients/search?q=${encodeURIComponent(qq)}`);
-        const items = Array.isArray(list) ? list : [];
-        const addNewHtml = '<div class="pos-client-result pos-client-result--new" data-action="new"><span class="pos-client-result__add">➕ Añadir nuevo cliente</span></div>';
-        const listHtml = items.length === 0
-            ? addNewHtml
-            : items.map((c) => `<div class="pos-client-result" data-id="${c.id}" data-name="${(c.name || '').replace(/"/g, '&quot;')}">${(c.name || 'Sin nombre').replace(/</g, '&lt;')}</div>`).join('') + addNewHtml;
-        showClientResults(listHtml);
-    }
-    catch (_) {
-        showClientResults('<div class="pos-client-result pos-client-result--new" data-action="new"><span class="pos-client-result__add">➕ Añadir nuevo cliente</span></div>');
-    }
-}
-
-if (posClientSearch) {
-    posClientSearch.addEventListener('input', () => {
-        clearTimeout(clientSearchTimeout);
-        const q = posClientSearch.value.trim();
-        if (!q) {
-            showClientResults('');
-            if (posClientId) posClientId.value = '';
-            return;
-        }
-        clientSearchTimeout = setTimeout(() => loadClientSearch(q), 200);
-    });
-    posClientSearch.addEventListener('focus', () => {
-        if (posClientSearch.value.trim()) loadClientSearch(posClientSearch.value.trim());
-    });
-}
-
-if (posClientResults) {
-    posClientResults.addEventListener('click', (e) => {
-        const row = e.target.closest('.pos-client-result');
-        if (!row) return;
-        if (row.getAttribute('data-action') === 'new') {
-            openNewClientModal(posClientSearch?.value?.trim() || '');
-            showClientResults('');
-            return;
-        }
-        const id = row.getAttribute('data-id');
-        const name = row.getAttribute('data-name');
-        selectClient(id, name);
-    });
-}
-
-document.addEventListener('click', (e) => {
-    if (posClientResults?.style.display === 'block' && !e.target.closest('.pos-client-wrap')) {
-        showClientResults('');
-    }
-});
-
-// ——— Modal nuevo cliente (desde Punto de venta)
-const posNewClientModal = document.getElementById('pos-new-client-modal');
-const posNewClientForm = document.getElementById('pos-new-client-form');
-
-function openNewClientModal(prefillName = '') {
-    if (!posNewClientModal) return;
-    if (document.getElementById('pos-new-client-name')) document.getElementById('pos-new-client-name').value = prefillName || '';
-    if (document.getElementById('pos-new-client-document')) document.getElementById('pos-new-client-document').value = '';
-    if (document.getElementById('pos-new-client-phone')) document.getElementById('pos-new-client-phone').value = '';
-    if (document.getElementById('pos-new-client-email')) document.getElementById('pos-new-client-email').value = '';
-    if (document.getElementById('pos-new-client-address')) document.getElementById('pos-new-client-address').value = '';
-    if (document.getElementById('pos-new-client-notes')) document.getElementById('pos-new-client-notes').value = '';
-    posNewClientModal.style.display = 'flex';
-}
-
-function closeNewClientModal() {
-    if (posNewClientModal) posNewClientModal.style.display = 'none';
-}
-
-if (posNewClientForm) {
-    posNewClientForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const name = document.getElementById('pos-new-client-name')?.value?.trim();
-        if (!name) return;
-        const payload = {
-            name,
-            document: document.getElementById('pos-new-client-document')?.value?.trim() || undefined,
-            phone: document.getElementById('pos-new-client-phone')?.value?.trim() || undefined,
-            email: document.getElementById('pos-new-client-email')?.value?.trim() || undefined,
-            address: document.getElementById('pos-new-client-address')?.value?.trim() || undefined,
-            notes: document.getElementById('pos-new-client-notes')?.value?.trim() || undefined,
-        };
-        try {
-            const res = await fetch(`${API}/api/clients`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                showMsg(data.error || 'Error al crear el cliente', true);
-                return;
-            }
-            const newId = data.id;
-            const newName = data.name || name;
-            selectClient(newId, newName);
-            closeNewClientModal();
-            showMsg(`Cliente "${newName}" creado y asignado a la venta.`, false);
-        }
-        catch (_) {
-            showMsg('Error de conexión', true);
-        }
-    });
-}
-
-document.getElementById('pos-new-client-cancel')?.addEventListener('click', closeNewClientModal);
-posNewClientModal?.addEventListener('click', (e) => {
-    if (e.target === posNewClientModal) closeNewClientModal();
-});
-
 loadRate();
 loadProducts();
 loadLowStockBanner();
-export {};

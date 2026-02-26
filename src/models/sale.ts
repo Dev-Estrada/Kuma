@@ -7,6 +7,8 @@ export interface SaleItem {
   subtotalUsd: number;
 }
 
+export type PaymentMethod = 'pago_movil' | 'tarjeta_debito' | 'efectivo_usd' | 'efectivo_bs';
+
 export interface Sale {
   id?: number;
   totalUsd: number;
@@ -20,6 +22,12 @@ export interface Sale {
   clientId?: number | null;
   createdAt?: string;
   items?: SaleItem[];
+  paymentMethod?: PaymentMethod | null;
+  paymentBankCode?: string | null;
+  paymentReference?: string | null;
+  paymentCashReceived?: number | null;
+  paymentChangeUsd?: number | null;
+  paymentChangeBs?: number | null;
 }
 
 export interface SaleCreateRequest {
@@ -27,4 +35,10 @@ export interface SaleCreateRequest {
   discountPercent?: number;
   notes?: string;
   clientId?: number | null;
+  paymentMethod: PaymentMethod;
+  paymentBankCode?: string | null;
+  paymentReference?: string | null;
+  paymentCashReceived?: number | null;
+  paymentChangeUsd?: number | null;
+  paymentChangeBs?: number | null;
 }

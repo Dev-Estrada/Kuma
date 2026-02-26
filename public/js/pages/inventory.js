@@ -2,8 +2,9 @@ const API = '';
 const ROWS_PER_PAGE = 7;
 let allCategories = [];
 let currentProducts = [];
-let currentProductsPage = 1;
 let editingProduct = null;
+let lowStockMode = false;
+let currentInventoryPage = 1;
 async function getJson(url) {
     const res = await fetch(`${API}${url}`);
     if (!res.ok)
@@ -43,59 +44,69 @@ function escapeHtml(s) {
 function renderPagination(containerId, totalItems, currentPage, onPageChange) {
     const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
     const el = document.getElementById(containerId);
-    if (!el) return;
-    if (totalItems === 0) { el.innerHTML = ''; return; }
-    const start = totalItems === 0 ? 0 : (currentPage - 1) * ROWS_PER_PAGE + 1;
+    if (!el)
+        return;
+    if (totalItems === 0) {
+        el.innerHTML = '';
+        return;
+    }
+    const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
     const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
-    el.innerHTML = '<span class="table-pagination__range">Mostrando ' + start + '-' + end + ' de ' + totalItems + '</span><div class="table-pagination__nav"><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-prev"' + (currentPage <= 1 ? ' disabled' : '') + '>Anterior</button><span>Página ' + currentPage + ' de ' + totalPages + '</span><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-next"' + (currentPage >= totalPages ? ' disabled' : '') + '>Siguiente</button></div>';
-    document.getElementById(containerId + '-prev')?.addEventListener('click', function () { if (currentPage > 1) onPageChange(currentPage - 1); });
-    document.getElementById(containerId + '-next')?.addEventListener('click', function () { if (currentPage < totalPages) onPageChange(currentPage + 1); });
+    el.innerHTML =
+        `<span class="table-pagination__range">Mostrando ${start}-${end} de ${totalItems}</span>` +
+            `<div class="table-pagination__nav">` +
+            `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-prev" ${currentPage <= 1 ? ' disabled' : ''}>Anterior</button>` +
+            `<span>Página ${currentPage} de ${totalPages}</span>` +
+            `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-next" ${currentPage >= totalPages ? ' disabled' : ''}>Siguiente</button>` +
+            `</div>`;
+    document.getElementById(`${containerId}-prev`)?.addEventListener('click', () => { if (currentPage > 1)
+        onPageChange(currentPage - 1); });
+    document.getElementById(`${containerId}-next`)?.addEventListener('click', () => { if (currentPage < totalPages)
+        onPageChange(currentPage + 1); });
 }
-function renderTable(products, page) {
+function renderTable(products, page = 1) {
     const tbody = document.getElementById('products-tbody');
+    const paginationEl = document.getElementById('products-pagination');
     const totalPages = Math.ceil(products.length / ROWS_PER_PAGE) || 1;
-    const p = Math.max(1, Math.min(page || 1, totalPages));
+    const p = Math.max(1, Math.min(page, totalPages));
     const slice = products.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
     tbody.innerHTML = slice
-        .map((prod) => `<tr>
-          <td><button type="button" class="btn-favorite ${prod.isFavorite ? 'btn-favorite--on' : ''}" data-id="${prod.id}" data-fav="${prod.isFavorite ? '1' : '0'}" title="${prod.isFavorite ? 'Quitar de favoritos' : 'Marcar favorito'}">★</button></td>
-          <td>${prod.id ?? ''}</td>
-          <td>${escapeHtml(prod.sku)}</td>
-          <td>${escapeHtml(prod.barcode ?? '')}</td>
-          <td>${escapeHtml(prod.name ?? '')}</td>
-          <td>$${(prod.listPrice ?? 0).toFixed(2)}</td>
-          <td>$${(prod.costPrice ?? 0).toFixed(2)}</td>
-          <td class="${stockClass(prod)}">${prod.quantity ?? 0}</td>
-          <td>${prod.minimumStock ?? 0}</td>
-          <td>${escapeHtml(prod.categoryName ?? '')}</td>
+        .map((p) => `<tr>
+          <td><button type="button" class="btn-favorite ${p.isFavorite ? 'btn-favorite--on' : ''}" data-id="${p.id}" data-fav="${p.isFavorite ? '1' : '0'}" title="${p.isFavorite ? 'Quitar de favoritos' : 'Marcar favorito'}">★</button></td>
+          <td>${p.id ?? ''}</td>
+          <td>${escapeHtml(p.sku)}</td>
+          <td>${escapeHtml(p.barcode ?? '')}</td>
+          <td>${escapeHtml(p.name ?? '')}</td>
+          <td>$${(p.listPrice ?? 0).toFixed(2)}</td>
+          <td>$${(p.costPrice ?? 0).toFixed(2)}</td>
+          <td class="${stockClass(p)}">${p.quantity ?? 0}</td>
+          <td>${p.minimumStock ?? 0}</td>
+          <td>${escapeHtml(p.categoryName ?? '')}</td>
           <td>
-            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${prod.id}" data-name="${escapeHtml(prod.name || '').replace(/"/g, '&quot;')}" data-qty="${prod.quantity ?? 0}">Ajustar</button>
-            <button type="button" class="btn btn--sm btn--ghost edit-product" data-id="${prod.id}">Editar</button>
-            <button type="button" class="btn btn--sm btn--danger delete-product" data-id="${prod.id}">Eliminar</button>
+            <button type="button" class="btn btn--sm btn--ghost adjust-stock" data-id="${p.id}" data-name="${escapeHtml(p.name || '').replace(/"/g, '&quot;')}" data-qty="${p.quantity ?? 0}">Ajustar</button>
+            <button type="button" class="btn btn--sm btn--ghost edit-product" data-id="${p.id}">Editar</button>
+            <button type="button" class="btn btn--sm btn--danger delete-product" data-id="${p.id}">Eliminar</button>
           </td>
         </tr>`)
         .join('');
-    renderPagination('products-pagination', products.length, p, function (newPage) {
-        currentProductsPage = newPage;
+    renderPagination('products-pagination', products.length, p, (newPage) => {
+        currentInventoryPage = newPage;
         renderTable(currentProducts, newPage);
     });
 }
 async function loadAndRender() {
-    try {
-        const q = document.getElementById('search').value.trim();
-        const catId = document.getElementById('category-filter').value;
-        let list = await fetchProducts(q || undefined);
-        if (catId)
-            list = list.filter((p) => String(p.categoryId) === catId);
-        currentProducts = list;
-        currentProductsPage = 1;
-        renderTable(list, 1);
-    } catch (_) {
-        const tbody = document.getElementById('products-tbody');
-        if (tbody) tbody.innerHTML = '';
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al cargar los productos.', type: 'error' });
-    }
+    lowStockMode = false;
+    currentInventoryPage = 1;
+    const btnLow = document.getElementById('btn-low-stock');
+    if (btnLow)
+        btnLow.textContent = 'Bajo stock';
+    const q = document.getElementById('search').value.trim();
+    const catId = document.getElementById('category-filter').value;
+    let list = await fetchProducts(q || undefined);
+    if (catId)
+        list = list.filter((p) => String(p.categoryId) === catId);
+    currentProducts = list;
+    renderTable(list, 1);
 }
 const modal = document.getElementById('product-modal');
 const form = document.getElementById('product-form');
@@ -150,40 +161,29 @@ form.addEventListener('submit', async (e) => {
         ? { ...editingProduct, ...formData }
         : { ...formData, sku: formData.sku, name: formData.name };
     try {
-        let res;
         if (id) {
-            res = await fetch(`${API}/api/products/${id}`, {
+            await fetch(`${API}/api/products/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
         }
         else {
-            res = await fetch(`${API}/api/products`, {
+            await fetch(`${API}/api/products`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
         }
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            const msg = data.error || 'Error al guardar.';
-            if (typeof window.showAlert === 'function')
-                window.showAlert({ title: 'Error', message: msg, type: 'error' });
-            else alert(msg);
-            return;
-        }
         closeModal();
         editingProduct = null;
         loadAndRender();
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Listo', message: 'Producto guardado correctamente.', type: 'success' });
-        else alert('Producto guardado correctamente.');
     }
     catch (err) {
         if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error de conexión al guardar.', type: 'error' });
-        else alert('Error de conexión.');
+            window.showAlert({ title: 'Error', message: 'Error al guardar.', type: 'error' });
+        else
+            alert('Error al guardar');
     }
 });
 document.getElementById('btn-cancel-product')?.addEventListener('click', closeModal);
@@ -196,20 +196,20 @@ document.getElementById('btn-export-csv')?.addEventListener('click', async (e) =
     e.preventDefault();
     try {
         const res = await fetch(`${API}/api/products/export`);
-        if (!res.ok) throw new Error('Export failed');
+        if (!res.ok)
+            throw new Error('Export failed');
         const blob = await res.blob();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'inventario.csv';
         a.click();
         URL.revokeObjectURL(a.href);
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Listo', message: 'Exportación completada. Se descargó inventario.csv', type: 'success' });
     }
     catch (_) {
         if (typeof window.showAlert === 'function')
             window.showAlert({ title: 'Error', message: 'Error al exportar. Comprueba la conexión.', type: 'error' });
-        else alert('Error al exportar.');
+        else
+            alert('Error al exportar. Comprueba la conexión.');
     }
 });
 document.getElementById('products-tbody')?.addEventListener('click', async (e) => {
@@ -223,25 +223,18 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
         const b = (btn || t);
         const isFav = b.getAttribute('data-fav') !== '1';
         try {
-            const res = await fetch(`${API}/api/products/${id}/favorite`, {
+            await fetch(`${API}/api/products/${id}/favorite`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ isFavorite: isFav }),
             });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                if (typeof window.showAlert === 'function')
-                    window.showAlert({ title: 'Error', message: data.error || 'Error al actualizar favorito.', type: 'error' });
-                return;
-            }
             loadAndRender();
-            if (typeof window.showAlert === 'function')
-                window.showAlert({ title: 'Listo', message: isFav ? 'Añadido a favoritos.' : 'Quitado de favoritos.', type: 'success' });
         }
         catch (_) {
             if (typeof window.showAlert === 'function')
-                window.showAlert({ title: 'Error', message: 'Error de conexión al actualizar favorito.', type: 'error' });
-            else alert('Error al actualizar favorito.');
+                window.showAlert({ title: 'Error', message: 'Error al actualizar favorito.', type: 'error' });
+            else
+                alert('Error al actualizar favorito.');
         }
         return;
     }
@@ -257,38 +250,15 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
         return;
     }
     if (t.classList.contains('edit-product')) {
-        try {
-            const res = await fetch(`${API}/api/products/${id}`);
-            const p = await res.json();
-            if (!res.ok) {
-                if (typeof window.showAlert === 'function')
-                    window.showAlert({ title: 'Error', message: p.error || 'Error al cargar el producto.', type: 'error' });
-                return;
-            }
-            openModal(p);
-        } catch (_) {
-            if (typeof window.showAlert === 'function')
-                window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
-        }
+        const res = await fetch(`${API}/api/products/${id}`);
+        const p = await res.json();
+        openModal(p);
     }
     if (t.classList.contains('delete-product')) {
         if (!confirm('¿Eliminar este producto?'))
             return;
-        try {
-            const res = await fetch(`${API}/api/products/${id}`, { method: 'DELETE' });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                if (typeof window.showAlert === 'function')
-                    window.showAlert({ title: 'Error', message: data.error || 'Error al eliminar.', type: 'error' });
-                return;
-            }
-            loadAndRender();
-            if (typeof window.showAlert === 'function')
-                window.showAlert({ title: 'Listo', message: 'Producto eliminado correctamente.', type: 'success' });
-        } catch (_) {
-            if (typeof window.showAlert === 'function')
-                window.showAlert({ title: 'Error', message: 'Error de conexión al eliminar.', type: 'error' });
-        }
+        await fetch(`${API}/api/products/${id}`, { method: 'DELETE' });
+        loadAndRender();
     }
 });
 document.getElementById('btn-adjust-cancel')?.addEventListener('click', () => {
@@ -317,56 +287,38 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
         });
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
-            const msg = data.error || 'Error al ajustar.';
+            const msg = data.error || 'Error al ajustar';
             if (typeof window.showAlert === 'function')
                 window.showAlert({ title: 'Error', message: msg, type: 'error' });
-            else alert(msg);
+            else
+                alert(msg);
             return;
         }
         document.getElementById('adjust-modal').style.display = 'none';
         loadAndRender();
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Listo', message: 'Stock ajustado correctamente.', type: 'success' });
     }
     catch (_) {
         if (typeof window.showAlert === 'function')
             window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
-        else alert('Error de conexión.');
+        else
+            alert('Error de conexión.');
     }
 });
 document.getElementById('search')?.addEventListener('input', () => loadAndRender());
 document.getElementById('category-filter')?.addEventListener('change', () => loadAndRender());
 document.getElementById('btn-low-stock')?.addEventListener('click', async () => {
+    if (lowStockMode) {
+        loadAndRender();
+        return;
+    }
     const list = await getJson('/api/products/low-stock');
     currentProducts = list;
-    currentProductsPage = 1;
+    lowStockMode = true;
+    currentInventoryPage = 1;
+    const btnLow = document.getElementById('btn-low-stock');
+    if (btnLow)
+        btnLow.textContent = 'Ver todo el inventario';
     renderTable(list, 1);
-});
-document.getElementById('btn-print-catalog')?.addEventListener('click', async () => {
-    if (typeof window.openPrintWindow !== 'function') return;
-    try {
-        const list = await getJson('/api/products');
-        const byCat = {};
-        (list || []).forEach((p) => {
-            const cat = (p.categoryName && String(p.categoryName).trim()) ? String(p.categoryName) : 'Sin categoría';
-            if (!byCat[cat]) byCat[cat] = [];
-            byCat[cat].push(p);
-        });
-        const cats = Object.keys(byCat).sort((a, b) => (a === 'Sin categoría' ? 1 : b === 'Sin categoría' ? -1 : a.localeCompare(b)));
-        let html = '<h1>Catálogo de productos</h1>';
-        cats.forEach((cat) => {
-            html += '<h2>' + escapeHtml(cat) + '</h2><table><thead><tr><th>ID</th><th>SKU</th><th>Cód. barras</th><th>Nombre</th><th>Descripción</th><th>P. venta USD</th><th>P. costo USD</th><th>Cantidad</th><th>Mín.</th><th>Unidad</th></tr></thead><tbody>';
-            byCat[cat].forEach((p) => {
-                html += '<tr><td>' + (p.id ?? '') + '</td><td>' + escapeHtml(p.sku) + '</td><td>' + escapeHtml(p.barcode ?? '') + '</td><td>' + escapeHtml(p.name ?? '') + '</td><td>' + escapeHtml(p.description ?? '') + '</td><td>$' + Number(p.listPrice ?? 0).toFixed(2) + '</td><td>$' + Number(p.costPrice ?? 0).toFixed(2) + '</td><td>' + (p.quantity ?? 0) + '</td><td>' + (p.minimumStock ?? '') + '</td><td>' + escapeHtml(p.unitOfMeasure ?? '') + '</td></tr>';
-            });
-            html += '</tbody></table>';
-        });
-        window.openPrintWindow('Catálogo de productos - KUMA', html);
-    } catch (e) {
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al cargar productos para el catálogo.', type: 'error' });
-        else alert('Error al cargar productos.');
-    }
 });
 async function loadLowStockBanner() {
     try {
@@ -383,6 +335,29 @@ async function loadLowStockBanner() {
     }
     catch (_) { }
 }
+document.getElementById('btn-print-catalog')?.addEventListener('click', () => {
+    const openPrintWindow = window.openPrintWindow;
+    if (typeof openPrintWindow !== 'function') {
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'No se pudo abrir la ventana de impresión.', type: 'error' });
+        else
+            alert('No se pudo abrir la ventana de impresión.');
+        return;
+    }
+    const list = currentProducts;
+    if (list.length === 0) {
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Aviso', message: 'No hay productos para imprimir.', type: 'warning' });
+        else
+            alert('No hay productos para imprimir.');
+        return;
+    }
+    const rows = list
+        .map((p) => `<tr><td>${p.id ?? ''}</td><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.barcode ?? '')}</td><td>${escapeHtml(p.name ?? '')}</td><td>$${(p.listPrice ?? 0).toFixed(2)}</td><td>$${(p.costPrice ?? 0).toFixed(2)}</td><td>${p.quantity ?? 0}</td><td>${p.minimumStock ?? 0}</td><td>${escapeHtml(p.categoryName ?? '')}</td></tr>`)
+        .join('');
+    const html = '<h1>Catálogo de inventario</h1><table><thead><tr><th>ID</th><th>SKU</th><th>Cód. barras</th><th>Nombre</th><th>P. venta USD</th><th>P. costo USD</th><th>Cantidad</th><th>Mínimo</th><th>Categoría</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    openPrintWindow('Catálogo de inventario', html);
+});
 loadCategories().then(() => {
     loadAndRender();
     loadLowStockBanner();

@@ -18,6 +18,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '50mb' }));
+// Módulos ES se piden sin .js (ej. /js/shared/banks); servir con extensión .js para que no caigan en auth
+app.use('/js', express.static(path.join(__dirname, '../public/js'), { extensions: ['js'] }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 app.use('/api/auth', authRoutes);

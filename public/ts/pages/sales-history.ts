@@ -1,3 +1,5 @@
+import { BANKS, PAYMENT_METHOD_LABELS } from '../shared/banks';
+
 const API = '';
 
 interface SaleListItem {
@@ -8,6 +10,8 @@ interface SaleListItem {
   discountPercent?: number;
   createdAt: string;
   itemCount?: number;
+  status?: string;
+  clientName?: string | null;
 }
 
 interface SaleItemDetail {
@@ -28,6 +32,12 @@ interface SaleDetail {
   notes?: string;
   createdAt: string;
   items: SaleItemDetail[];
+  paymentMethod?: string | null;
+  paymentBankCode?: string | null;
+  paymentReference?: string | null;
+  paymentCashReceived?: number | null;
+  paymentChangeUsd?: number | null;
+  paymentChangeBs?: number | null;
 }
 
 async function getJson<T>(url: string): Promise<T> {
@@ -64,25 +74,65 @@ function formatDateTime(s: string | number | null | undefined): string {
   }
 }
 
-function renderSalesRows(sales: SaleListItem[]) {
+function getStatusLabel(status: string | undefined): string {
+  return status === 'anulada' ? 'Anulada' : 'Completada';
+}
+
+function renderPagination(containerId: string, totalItems: number, currentPage: number, onPageChange: (page: number) => void) {
+  const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (totalItems === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
+  const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+  el.innerHTML =
+    `<span class="table-pagination__range">Mostrando ${start}-${end} de ${totalItems}</span>` +
+    `<div class="table-pagination__nav">` +
+    `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-prev" ${currentPage <= 1 ? ' disabled' : ''}>Anterior</button>` +
+    `<span>Página ${currentPage} de ${totalPages}</span>` +
+    `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-next" ${currentPage >= totalPages ? ' disabled' : ''}>Siguiente</button>` +
+    `</div>`;
+  document.getElementById(`${containerId}-prev`)?.addEventListener('click', () => { if (currentPage > 1) onPageChange(currentPage - 1); });
+  document.getElementById(`${containerId}-next`)?.addEventListener('click', () => { if (currentPage < totalPages) onPageChange(currentPage + 1); });
+}
+
+function renderSalesRows(sales: SaleListItem[], page = 1) {
   const tbody = document.getElementById('sales-tbody')!;
-  tbody.innerHTML = sales
+  const totalPages = Math.ceil(sales.length / ROWS_PER_PAGE) || 1;
+  const p = Math.max(1, Math.min(page, totalPages));
+  const slice = sales.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
+  tbody.innerHTML = slice
     .map(
       (s) =>
         `<tr>
           <td><strong>#${s.id}</strong></td>
+          <td>${getStatusLabel(s.status)}</td>
           <td>${formatDateTime(s.createdAt)}</td>
           <td>${Number(s.exchangeRate).toFixed(2)}</td>
           <td>$${Number(s.totalUsd).toFixed(2)}</td>
           <td>Bs ${Number(s.totalBs).toFixed(2)}</td>
           <td>${s.itemCount ?? '-'}</td>
-          <td><button type="button" class="btn btn--sm btn--ghost btn-view-detail" data-sale-id="${s.id}">Ver detalle</button></td>
+          <td>${(s.clientName || '—').replace(/</g, '&lt;')}</td>
+          <td>
+            <button type="button" class="btn btn--sm btn--ghost btn-view-detail" data-sale-id="${s.id}">Ver detalle</button>
+            <button type="button" class="btn btn--sm btn--ghost btn-view-payment" data-sale-id="${s.id}">Método de pago</button>
+          </td>
         </tr>`
     )
     .join('');
+  renderPagination('sales-pagination', sales.length, p, (newPage) => {
+    currentSalesPage = newPage;
+    renderSalesRows(sales, newPage);
+  });
 }
 
+const ROWS_PER_PAGE = 7;
+
 let allSales: SaleListItem[] = [];
+let currentSalesPage = 1;
 
 function todayStr(): string {
   const d = new Date();
@@ -107,9 +157,11 @@ async function loadSalesList(useDateFilter?: boolean) {
       sales = await getJson<SaleListItem[]>('/api/sales?limit=200');
     }
     allSales = sales;
+    currentSalesPage = 1;
     if (sales.length === 0) {
       msg.textContent = from && to ? 'No hay ventas en ese rango de fechas.' : 'No hay ventas registradas.';
       tbody.innerHTML = '';
+      (document.getElementById('sales-pagination') as HTMLElement).innerHTML = '';
       return;
     }
     msg.textContent = '';
@@ -124,12 +176,13 @@ function applySaleFilter() {
   const q = (document.getElementById('sale-search') as HTMLInputElement)?.value.trim() || '';
   const msg = document.getElementById('sales-msg')!;
   if (!q) {
-    renderSalesRows(allSales);
+    renderSalesRows(allSales, currentSalesPage);
     msg.textContent = '';
     return;
   }
   const filtered = allSales.filter((s) => String(s.id).includes(q));
-  renderSalesRows(filtered);
+  currentSalesPage = 1;
+  renderSalesRows(filtered, 1);
   if (filtered.length === 0) {
     msg.textContent = `Ninguna venta coincide con el ID "${q}".`;
   } else {
@@ -144,11 +197,25 @@ function openDetailModal(sale: SaleDetail) {
   title.textContent = `Venta #${sale.id}`;
   const subtotalBeforeDiscount = sale.items.reduce((s, i) => s + i.subtotalUsd, 0);
   const discount = sale.discountPercent ?? 0;
+  const paymentLabel = sale.paymentMethod ? (PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod) : '';
+  const bankName = sale.paymentBankCode ? (BANKS.find((b) => b.code === sale.paymentBankCode)?.name || sale.paymentBankCode) : '';
+  const paymentInfo =
+    paymentLabel
+      ? `<div class="sale-detail-payment">
+          <p><strong>Método de pago:</strong> ${paymentLabel}</p>
+          ${sale.paymentBankCode && bankName ? `<p><strong>Banco:</strong> ${bankName}</p>` : ''}
+          ${sale.paymentReference ? `<p><strong>Referencia:</strong> ${String(sale.paymentReference).replace(/</g, '&lt;')}</p>` : ''}
+          ${sale.paymentCashReceived != null ? `<p><strong>Efectivo recibido:</strong> ${sale.paymentMethod === 'efectivo_usd' ? '$' + Number(sale.paymentCashReceived).toFixed(2) + ' USD' : 'Bs ' + Number(sale.paymentCashReceived).toFixed(2)}</p>` : ''}
+          ${(sale.paymentChangeUsd != null && sale.paymentChangeUsd > 0) ? `<p><strong>Cambio (USD):</strong> $${Number(sale.paymentChangeUsd).toFixed(2)}</p>` : ''}
+          ${(sale.paymentChangeBs != null && sale.paymentChangeBs > 0) ? `<p><strong>Cambio (Bs):</strong> Bs ${Number(sale.paymentChangeBs).toFixed(2)}</p>` : ''}
+        </div>`
+      : '';
   content.innerHTML = `
     <div class="sale-detail-meta">
       <p><strong>Fecha y hora:</strong> ${formatDateTime(sale.createdAt)}</p>
       <p class="sale-detail-rate"><strong>Tasa aplicada en esta venta:</strong> 1 USD = <strong>${Number(sale.exchangeRate).toFixed(2)} Bs</strong></p>
       ${sale.notes ? `<p><strong>Notas:</strong> ${sale.notes}</p>` : ''}
+      ${paymentInfo}
     </div>
     <div class="table-wrap">
       <table>
@@ -191,13 +258,43 @@ function closeDetailModal() {
   (document.getElementById('sale-detail-modal') as HTMLElement).style.display = 'none';
 }
 
+function showPaymentModal(sale: SaleDetail) {
+  const paymentLabel = sale.paymentMethod ? (PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod) : '';
+  const bankName = sale.paymentBankCode ? (BANKS.find((b) => b.code === sale.paymentBankCode)?.name || sale.paymentBankCode) : '';
+  const parts: string[] = [`Método de pago: ${paymentLabel || '—'}`];
+  if (sale.paymentBankCode && bankName) parts.push(`Banco: ${bankName}`);
+  if (sale.paymentReference) parts.push(`Referencia: ${String(sale.paymentReference).replace(/</g, '&lt;')}`);
+  if (sale.paymentCashReceived != null) parts.push(`Efectivo recibido: ${sale.paymentMethod === 'efectivo_usd' ? '$' + Number(sale.paymentCashReceived).toFixed(2) + ' USD' : 'Bs ' + Number(sale.paymentCashReceived).toFixed(2)}`);
+  if (sale.paymentChangeUsd != null && sale.paymentChangeUsd > 0) parts.push(`Cambio (USD): $${Number(sale.paymentChangeUsd).toFixed(2)}`);
+  if (sale.paymentChangeBs != null && sale.paymentChangeBs > 0) parts.push(`Cambio (Bs): Bs ${Number(sale.paymentChangeBs).toFixed(2)}`);
+  const message = parts.join('\n');
+  if (typeof (window as any).showAlert === 'function') {
+    (window as any).showAlert({ title: `Venta #${sale.id} – Método de pago`, message, type: 'info', skipNotificationSeen: true });
+    return;
+  }
+  const root = document.getElementById('alert-modal-root');
+  if (root) {
+    root.innerHTML = `<div class="alert-modal-overlay" id="payment-info-overlay"><div class="alert-modal"><h3 class="alert-modal__title">Venta #${sale.id} – Método de pago</h3><p class="alert-modal__message" style="white-space: pre-line;">${message.replace(/</g, '&lt;')}</p><button type="button" class="btn btn--ghost" id="payment-info-close">Cerrar</button></div></div>`;
+    root.style.display = 'block';
+    document.getElementById('payment-info-close')?.addEventListener('click', () => { root.innerHTML = ''; root.style.display = 'none'; });
+    document.getElementById('payment-info-overlay')?.addEventListener('click', (ev) => { if ((ev.target as HTMLElement).id === 'payment-info-overlay') { root.innerHTML = ''; root.style.display = 'none'; } });
+  }
+}
+
 document.getElementById('sales-tbody')?.addEventListener('click', async (e) => {
-  const btn = (e.target as HTMLElement).closest('.btn-view-detail');
+  const target = e.target as HTMLElement;
+  const btnDetail = target.closest('.btn-view-detail');
+  const btnPayment = target.closest('.btn-view-payment');
+  const btn = btnDetail || btnPayment;
   if (!btn) return;
   const id = Number(btn.getAttribute('data-sale-id'));
   try {
     const sale = await getJson<SaleDetail>(`/api/sales/${id}`);
-    openDetailModal(sale);
+    if (btnPayment) {
+      showPaymentModal(sale);
+    } else {
+      openDetailModal(sale);
+    }
   } catch (_) {
     if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: 'Error al cargar el detalle de la venta.', type: 'error' });
     else alert('Error al cargar el detalle de la venta.');
@@ -220,6 +317,54 @@ document.getElementById('btn-clear-dates')?.addEventListener('click', () => {
   if (fromEl) fromEl.value = '';
   if (toEl) toEl.value = '';
   loadSalesList(false);
+});
+
+function getSalesToPrint(): SaleListItem[] {
+  const q = (document.getElementById('sale-search') as HTMLInputElement)?.value.trim() || '';
+  if (!q) return allSales;
+  return allSales.filter((s) => String(s.id).includes(q));
+}
+
+document.getElementById('btn-print-sales')?.addEventListener('click', () => {
+  const sales = getSalesToPrint();
+  if (sales.length === 0) {
+    if (typeof (window as any).showAlert === 'function') {
+      (window as any).showAlert({ title: 'Aviso', message: 'No hay ventas para imprimir.', type: 'warning' });
+    } else {
+      alert('No hay ventas para imprimir.');
+    }
+    return;
+  }
+  const openPrintWindow = (window as any).openPrintWindow;
+  if (typeof openPrintWindow !== 'function') {
+    if (typeof (window as any).showAlert === 'function') {
+      (window as any).showAlert({ title: 'Error', message: 'No se pudo abrir la ventana de impresión.', type: 'error' });
+    } else {
+      alert('No se pudo abrir la ventana de impresión.');
+    }
+    return;
+  }
+  const tableRows = sales
+    .map(
+      (s) =>
+        `<tr>
+          <td>#${s.id}</td>
+          <td>${getStatusLabel(s.status)}</td>
+          <td>${formatDateTime(s.createdAt)}</td>
+          <td>${Number(s.exchangeRate).toFixed(2)}</td>
+          <td>$${Number(s.totalUsd).toFixed(2)}</td>
+          <td>Bs ${Number(s.totalBs).toFixed(2)}</td>
+          <td>${s.itemCount ?? '-'}</td>
+          <td>${(s.clientName || '—').replace(/</g, '&lt;')}</td>
+        </tr>`
+    )
+    .join('');
+  const html =
+    '<h1>Historial de ventas</h1>' +
+    '<table><thead><tr><th>ID</th><th>Estado</th><th>Fecha y hora</th><th>Tasa (Bs/USD)</th><th>Total USD</th><th>Total Bs</th><th>Items</th><th>Cliente</th></tr></thead><tbody>' +
+    tableRows +
+    '</tbody></table>';
+  openPrintWindow('Historial de ventas', html);
 });
 
 loadSalesList(false);

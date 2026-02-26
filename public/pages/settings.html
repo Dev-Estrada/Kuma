@@ -39,7 +39,6 @@
         <a class="topbar__link" href="/pages/inventory.html">Inventario</a>
         <a class="topbar__link" href="/pages/sales-history.html">Ventas</a>
         <a class="topbar__link" href="/pages/reports.html">Reportes</a>
-        <a class="topbar__link" href="/pages/entries.html">Entrada</a>
         <a class="topbar__link" href="/pages/clients.html">Clientes</a>
         <a class="topbar__link active" href="/pages/settings.html">Configuración</a>
       </nav>
@@ -47,64 +46,15 @@
     <main class="main">
       <h1 class="page-title">Configuración</h1>
       <div class="controls-bar" style="margin-bottom: 1rem;">
-        <button type="button" class="btn btn--ghost" id="btn-print-settings">Imprimir configuración</button>
+        <button type="button" class="btn btn--ghost" id="btn-settings-appearance">Apariencia</button>
+        <button type="button" class="btn btn--ghost" id="btn-settings-rate">Tasa de cambio</button>
+        <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-backup">Copia de seguridad</button>
+        <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-restore">Restaurar desde copia</button>
+        <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-demo">Base de datos demo</button>
+        <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-delete-db">Eliminar BD actual</button>
+        <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-auto-backup">Copia automática</button>
       </div>
-      <div class="settings-row">
-        <div class="card settings-card">
-        <div class="card__title">Apariencia</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Cambia entre tema claro y oscuro.</p>
-        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema">
-          <span id="theme-toggle-label">Modo oscuro</span>
-        </button>
-      </div>
-      <div class="card settings-card">
-        <div class="card__title">Tasa de cambio (USD → Bs)</div>
-        <p class="text-muted" style="margin: 0 0 1rem;">Los precios se guardan en dólares. Esta tasa se usa para mostrar totales en bolívares en el punto de venta. Cada cambio queda registrado en el historial para auditoría.</p>
-        <div class="form-group">
-          <label for="exchange-rate">Tasa actual (Bs por 1 USD)</label>
-          <input type="number" id="exchange-rate" min="0.01" step="0.01" placeholder="36.50" />
-        </div>
-        <div class="form-group">
-          <label for="rate-notes">Nota (opcional, para auditoría)</label>
-          <input type="text" id="rate-notes" placeholder="Ej: Tasa BCV 23/02/2025" />
-        </div>
-        <div class="form-row mt-1">
-          <button type="button" class="btn btn--primary" id="btn-save-rate">Guardar tasa</button>
-        </div>
-        <div id="settings-msg"></div>
-      </div>
-      <div class="card settings-card settings-card--admin-only">
-        <div class="card__title">Copia de seguridad</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Descarga una copia del archivo de base de datos (inventory.db) para respaldo.</p>
-        <a href="/api/backup" class="btn btn--ghost" id="btn-backup" download="inventory.db">Descargar copia de seguridad</a>
-      </div>
-      <div class="card settings-card settings-card--admin-only">
-        <div class="card__title">Restaurar desde copia</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Sube un archivo .db (copia de seguridad o <strong>demoBD.db</strong>). La restauración se aplicará al <strong>reiniciar el servidor</strong>. Se guardará una copia de la base actual como inventory.db.bak.</p>
-        <div class="form-group">
-          <label for="restore-file">Seleccionar archivo (.db)</label>
-          <input type="file" id="restore-file" accept=".db,application/octet-stream" />
-        </div>
-        <button type="button" class="btn btn--primary" id="btn-restore" disabled>Restaurar (aplicar al reiniciar)</button>
-        <p id="restore-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
-      </div>
-      <div class="card settings-card settings-card--admin-only">
-        <div class="card__title">Base de datos de demostración</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Carga la base de datos <strong>demoBD.db</strong> con productos, ventas y clientes de ejemplo. Reinicie el servidor después para aplicarla.</p>
-        <button type="button" class="btn btn--ghost" id="btn-restore-demo">Cargar base de datos de demostración</button>
-        <p id="restore-demo-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
-      </div>
-      <div class="card settings-card settings-card--admin-only">
-        <div class="card__title">Eliminar base de datos actual</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Borra la base de datos actual. Útil si está dañada. Después puede restaurar desde una copia o cargar la demo. Se creará una base de datos nueva vacía (usuario admin / Admin123!).</p>
-        <button type="button" class="btn btn--ghost btn--danger" id="btn-delete-db">Eliminar base de datos actual</button>
-        <p id="delete-db-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
-      </div>
-      <div class="card settings-card settings-card--admin-only">
-        <div class="card__title">Copia de seguridad automática</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Todos los días a las <strong>23:59</strong> (hora Venezuela) se guarda una copia en la carpeta <strong>backups/</strong>. Se mantienen como máximo <strong>7 copias</strong>; las más antiguas se eliminan.</p>
-      </div>
-      </div>
+
       <div class="card">
         <div class="card__title">Historial de tasa de cambio (auditoría)</div>
         <p class="text-muted" style="margin: 0 0 .75rem;">Registro de cada cambio de tasa con fecha y hora.</p>
@@ -125,6 +75,110 @@
       </div>
     </main>
   </div>
+
+  <!-- Modal: Apariencia -->
+  <div id="settings-modal-appearance" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 26rem;">
+      <h2 class="modal__title">Apariencia</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Cambia entre tema claro y oscuro.</p>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema">
+        <span id="theme-toggle-label">Modo oscuro</span>
+      </button>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-appearance">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Tasa de cambio -->
+  <div id="settings-modal-rate" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Tasa de cambio (USD → Bs)</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Los precios se guardan en dólares. Esta tasa se usa para mostrar totales en bolívares en el punto de venta. Cada cambio queda registrado en el historial para auditoría.</p>
+      <div class="form-group">
+        <label for="exchange-rate">Tasa actual (Bs por 1 USD)</label>
+        <input type="number" id="exchange-rate" min="0.01" step="0.01" placeholder="36.50" />
+      </div>
+      <div class="form-group">
+        <label for="rate-notes">Nota (opcional, para auditoría)</label>
+        <input type="text" id="rate-notes" placeholder="Ej: Tasa BCV 23/02/2025" />
+      </div>
+      <div class="form-row mt-1">
+        <button type="button" class="btn btn--primary" id="btn-save-rate">Guardar tasa</button>
+      </div>
+      <div id="settings-msg"></div>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-rate">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Copia de seguridad -->
+  <div id="settings-modal-backup" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Copia de seguridad</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Descarga una copia del archivo de base de datos (inventory.db) para respaldo.</p>
+      <a href="/api/backup" class="btn btn--ghost" id="btn-backup" download="inventory.db">Descargar copia de seguridad</a>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-backup">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Restaurar desde copia -->
+  <div id="settings-modal-restore" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Restaurar desde copia</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Sube un archivo .db (copia de seguridad o <strong>demoBD.db</strong>). La restauración se aplicará al <strong>reiniciar el servidor</strong>. Se guardará una copia de la base actual como inventory.db.bak.</p>
+      <div class="form-group">
+        <label for="restore-file">Seleccionar archivo (.db)</label>
+        <input type="file" id="restore-file" accept=".db,application/octet-stream" />
+      </div>
+      <button type="button" class="btn btn--primary" id="btn-restore" disabled>Restaurar (aplicar al reiniciar)</button>
+      <p id="restore-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-restore">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Base de datos demo -->
+  <div id="settings-modal-demo" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Base de datos de demostración</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Carga la base de datos <strong>demoBD.db</strong> con productos, ventas y clientes de ejemplo. Reinicie el servidor después para aplicarla.</p>
+      <button type="button" class="btn btn--ghost" id="btn-restore-demo">Cargar base de datos de demostración</button>
+      <p id="restore-demo-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-demo">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Eliminar BD actual -->
+  <div id="settings-modal-delete-db" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Eliminar base de datos actual</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Borra la base de datos actual. Útil si está dañada. Después puede restaurar desde una copia o cargar la demo. Se creará una base de datos nueva vacía (usuario admin / Admin123!).</p>
+      <button type="button" class="btn btn--ghost btn--danger" id="btn-delete-db">Eliminar base de datos actual</button>
+      <p id="delete-db-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-delete-db">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Copia automática -->
+  <div id="settings-modal-auto-backup" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Copia de seguridad automática</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Todos los días a las <strong>23:59</strong> (hora Venezuela) se guarda una copia en la carpeta <strong>backups/</strong>. Se mantienen como máximo <strong>7 copias</strong>; las más antiguas se eliminan.</p>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-auto-backup">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     document.addEventListener('keydown', function(e) {
       if (!e.ctrlKey) return;
@@ -133,8 +187,7 @@
       if (e.key === '3') { e.preventDefault(); location.href = '/pages/inventory.html'; }
       if (e.key === '4') { e.preventDefault(); location.href = '/pages/sales-history.html'; }
       if (e.key === '5') { e.preventDefault(); location.href = '/pages/reports.html'; }
-      if (e.key === '6') { e.preventDefault(); location.href = '/pages/entries.html'; }
-      if (e.key === '7') { e.preventDefault(); location.href = '/pages/clients.html'; }
+      if (e.key === '6') { e.preventDefault(); location.href = '/pages/clients.html'; }
       if (e.key === '8') { e.preventDefault(); location.href = '/pages/settings.html'; }
     });
   </script>

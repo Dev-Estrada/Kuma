@@ -45,13 +45,12 @@ interface LowStockItem {
 
 async function loadDashboard() {
   try {
-    const [products, lowStock, rateRes, sales, lastRate, expiring] = await Promise.all([
+    const [products, lowStock, rateRes, sales, lastRate] = await Promise.all([
       getJson<{ id: number }[]>('/api/products'),
       getJson<LowStockItem[]>('/api/products/low-stock'),
       getJson<{ exchangeRate: number }>('/api/settings/exchange-rate'),
       getJson<{ id: number; createdAt?: string }[]>('/api/sales?limit=50'),
       getJson<{ lastUpdate: string | null }>('/api/settings/last-rate-update').catch(() => ({ lastUpdate: null })),
-      getJson<{ id: number; name?: string; sku?: string; expiryDate?: string }[]>('/api/products/expiring?days=30').catch(() => []),
     ]);
     const activeCount = products.length;
     (document.getElementById('stat-products') as HTMLElement).textContent = String(activeCount);
@@ -88,29 +87,6 @@ async function loadDashboard() {
       const last = new Date(lastRate.lastUpdate);
       const days = (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24);
       rateReminder.style.display = days > 7 ? 'block' : 'none';
-    }
-
-    const expiringCard = document.getElementById('expiring-card');
-    const expiringTbody = document.getElementById('expiring-tbody');
-    const expiringMsg = document.getElementById('expiring-msg');
-    if (expiringCard && expiringTbody && expiringMsg) {
-      if (expiring.length > 0) {
-        expiringCard.style.display = 'block';
-        expiringMsg.textContent = '';
-        expiringTbody.innerHTML = expiring
-          .slice(0, 10)
-          .map(
-            (p) =>
-              `<tr>
-                <td>${p.name || p.sku || '—'}</td>
-                <td>${p.sku || '—'}</td>
-                <td>${p.expiryDate || '—'}</td>
-              </tr>`
-          )
-          .join('');
-      } else {
-        expiringCard.style.display = 'none';
-      }
     }
 
     const tbody = document.getElementById('dashboard-modal-recent-sales-tbody');

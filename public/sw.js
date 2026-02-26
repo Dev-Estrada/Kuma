@@ -16,6 +16,7 @@ self.addEventListener('install', (event) => {
         '/pages/settings.html',
         '/pages/entries.html',
         '/pages/clients.html',
+        '/pages/categories.html',
         '/pages/admin.html',
       ]).catch(() => {});
     })

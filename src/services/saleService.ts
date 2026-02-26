@@ -3,6 +3,8 @@ import { SettingsRepository } from '../repositories/settingsRepository';
 import { SalesRepository } from '../repositories/salesRepository';
 import { SaleCreateRequest } from '../models/sale';
 
+const VALID_PAYMENT_METHODS = ['pago_movil', 'tarjeta_debito', 'efectivo_usd', 'efectivo_bs'] as const;
+
 export class SaleService {
   private productRepo = new ProductRepository();
   private settingsRepo = new SettingsRepository();
@@ -11,6 +13,15 @@ export class SaleService {
   async createSale(req: SaleCreateRequest): Promise<{ id: number; totalUsd: number; totalBs: number }> {
     if (!req.items || req.items.length === 0) {
       throw new Error('Debe incluir al menos un producto en la venta');
+    }
+    if (!req.paymentMethod || !VALID_PAYMENT_METHODS.includes(req.paymentMethod)) {
+      throw new Error('Método de pago no válido');
+    }
+    if ((req.paymentMethod === 'pago_movil' || req.paymentMethod === 'tarjeta_debito') && !(req.paymentReference?.trim())) {
+      throw new Error('Debe indicar la referencia de la transacción');
+    }
+    if ((req.paymentMethod === 'efectivo_usd' || req.paymentMethod === 'efectivo_bs') && (req.paymentCashReceived == null || req.paymentCashReceived < 0)) {
+      throw new Error('Debe indicar el efectivo recibido');
     }
     const discountPercent = Math.max(0, Math.min(100, req.discountPercent ?? 0));
     const productIds = [...new Set(req.items.map((i) => i.productId))];
@@ -50,7 +61,20 @@ export class SaleService {
     const totalBs = Math.round(totalUsd * exchangeRate * 100) / 100;
 
     const saleId = await this.salesRepo.createSale(
-      { totalUsd, totalBs, exchangeRate, discountPercent, notes: req.notes, clientId: req.clientId ?? null },
+      {
+        totalUsd,
+        totalBs,
+        exchangeRate,
+        discountPercent,
+        notes: req.notes,
+        clientId: req.clientId ?? null,
+        paymentMethod: req.paymentMethod,
+        paymentBankCode: req.paymentBankCode ?? null,
+        paymentReference: req.paymentReference ?? null,
+        paymentCashReceived: req.paymentCashReceived ?? null,
+        paymentChangeUsd: req.paymentChangeUsd ?? null,
+        paymentChangeBs: req.paymentChangeBs ?? null,
+      },
       lineItems,
       productUpdates,
       movements

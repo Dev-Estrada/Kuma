@@ -1,4 +1,51 @@
 const API = '';
+const ROWS_PER_PAGE = 7;
+
+let rateHistoryData: RateHistoryRow[] = [];
+let currentRateHistoryPage = 1;
+
+function applyAdminOnlyVisibility() {
+  const getAuthUser = (window as any).getAuthUser;
+  const user = typeof getAuthUser === 'function' ? getAuthUser() : null;
+  const isAdmin = user && user.role === 'admin';
+  document.querySelectorAll('.settings-btn--admin-only').forEach((el) => {
+    (el as HTMLElement).style.display = isAdmin ? '' : 'none';
+  });
+}
+
+function openSettingsModal(modalId: string, onOpen?: () => void) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.style.display = 'flex';
+    if (typeof onOpen === 'function') onOpen();
+  }
+}
+
+function closeSettingsModal(modalId: string) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.style.display = 'none';
+}
+
+document.getElementById('btn-settings-appearance')?.addEventListener('click', () => openSettingsModal('settings-modal-appearance'));
+document.getElementById('btn-settings-rate')?.addEventListener('click', () => openSettingsModal('settings-modal-rate', () => loadRate()));
+document.getElementById('btn-settings-backup')?.addEventListener('click', () => openSettingsModal('settings-modal-backup'));
+document.getElementById('btn-settings-restore')?.addEventListener('click', () => openSettingsModal('settings-modal-restore'));
+document.getElementById('btn-settings-demo')?.addEventListener('click', () => openSettingsModal('settings-modal-demo'));
+document.getElementById('btn-settings-delete-db')?.addEventListener('click', () => openSettingsModal('settings-modal-delete-db'));
+document.getElementById('btn-settings-auto-backup')?.addEventListener('click', () => openSettingsModal('settings-modal-auto-backup'));
+
+document.querySelectorAll('[data-settings-close]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const modalId = btn.getAttribute('data-settings-close');
+    if (modalId) closeSettingsModal(modalId);
+  });
+});
+
+['settings-modal-appearance', 'settings-modal-rate', 'settings-modal-backup', 'settings-modal-restore', 'settings-modal-demo', 'settings-modal-delete-db', 'settings-modal-auto-backup'].forEach((modalId) => {
+  document.getElementById(modalId)?.addEventListener('click', (e) => {
+    if (e.target && (e.target as HTMLElement).id === modalId) closeSettingsModal(modalId);
+  });
+});
 
 interface RateHistoryRow {
   id: number;
@@ -58,30 +105,68 @@ async function loadRate() {
   (document.getElementById('exchange-rate') as HTMLInputElement).value = String(r.exchangeRate);
 }
 
+function renderRateHistoryPagination(containerId: string, totalItems: number, currentPage: number, onPageChange: (page: number) => void) {
+  const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (totalItems === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
+  const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+  el.innerHTML =
+    `<span class="table-pagination__range">Mostrando ${start}-${end} de ${totalItems}</span>` +
+    `<div class="table-pagination__nav">` +
+    `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-prev" ${currentPage <= 1 ? ' disabled' : ''}>Anterior</button>` +
+    `<span>Página ${currentPage} de ${totalPages}</span>` +
+    `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-next" ${currentPage >= totalPages ? ' disabled' : ''}>Siguiente</button>` +
+    `</div>`;
+  document.getElementById(`${containerId}-prev`)?.addEventListener('click', () => { if (currentPage > 1) onPageChange(currentPage - 1); });
+  document.getElementById(`${containerId}-next`)?.addEventListener('click', () => { if (currentPage < totalPages) onPageChange(currentPage + 1); });
+}
+
+function renderRateHistoryPage(page: number) {
+  const tbody = document.getElementById('rate-history-tbody')!;
+  const totalPages = Math.ceil(rateHistoryData.length / ROWS_PER_PAGE) || 1;
+  const p = Math.max(1, Math.min(page, totalPages));
+  const slice = rateHistoryData.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
+  tbody.innerHTML = slice
+    .map(
+      (row) =>
+        `<tr>
+          <td>${formatDateTime(row.createdAt)}</td>
+          <td><strong>${Number(row.rate).toFixed(2)}</strong></td>
+          <td class="text-muted">${row.notes || '—'}</td>
+        </tr>`
+    )
+    .join('');
+  renderRateHistoryPagination('rate-history-pagination', rateHistoryData.length, p, (newPage) => {
+    currentRateHistoryPage = newPage;
+    renderRateHistoryPage(newPage);
+  });
+}
+
 async function loadRateHistory() {
   const tbody = document.getElementById('rate-history-tbody')!;
   const msg = document.getElementById('rate-history-msg')!;
+  const paginationEl = document.getElementById('rate-history-pagination')!;
   try {
     const history = await getJson<RateHistoryRow[]>('/api/settings/exchange-rate-history?limit=100');
+    rateHistoryData = history;
+    currentRateHistoryPage = 1;
     if (history.length === 0) {
       msg.textContent = 'Aún no hay cambios de tasa registrados. Al guardar una tasa se creará el historial.';
       tbody.innerHTML = '';
+      paginationEl.innerHTML = '';
       return;
     }
     msg.textContent = '';
-    tbody.innerHTML = history
-      .map(
-        (row) =>
-          `<tr>
-            <td>${formatDateTime(row.createdAt)}</td>
-            <td><strong>${Number(row.rate).toFixed(2)}</strong></td>
-            <td class="text-muted">${row.notes || '—'}</td>
-          </tr>`
-      )
-      .join('');
+    renderRateHistoryPage(1);
   } catch (e) {
     msg.textContent = 'Error al cargar el historial.';
     tbody.innerHTML = '';
+    paginationEl.innerHTML = '';
   }
 }
 
@@ -254,6 +339,7 @@ if (btnDeleteDb && deleteDbMsg) {
   });
 }
 
+applyAdminOnlyVisibility();
 loadRate();
 loadRateHistory();
 export {};

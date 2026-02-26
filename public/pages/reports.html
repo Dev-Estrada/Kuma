@@ -39,7 +39,6 @@
         <a class="topbar__link" href="/pages/inventory.html">Inventario</a>
         <a class="topbar__link" href="/pages/sales-history.html">Ventas</a>
         <a class="topbar__link active" href="/pages/reports.html">Reportes</a>
-        <a class="topbar__link" href="/pages/entries.html">Entrada</a>
         <a class="topbar__link" href="/pages/clients.html">Clientes</a>
         <a class="topbar__link" href="/pages/settings.html">Configuración</a>
       </nav>
@@ -47,42 +46,10 @@
     <main class="main">
       <h1 class="page-title">Reportes</h1>
       <div class="controls-bar" style="margin-bottom: 1rem;">
+        <button type="button" class="btn btn--ghost" id="btn-report-day">Cierre del día (hoy)</button>
+        <button type="button" class="btn btn--ghost" id="btn-report-period">Ventas por período</button>
+        <button type="button" class="btn btn--ghost" id="btn-report-inventory">Valor del inventario</button>
         <button type="button" class="btn btn--ghost" id="btn-print-report">Imprimir reporte</button>
-      </div>
-      <div class="cards-grid">
-      <div class="card">
-        <div class="card__title">Cierre del día (hoy)</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Resumen de ventas del día actual: cantidad de ventas, totales en USD y Bs, costo de lo vendido, utilidad y margen.</p>
-        <div id="day-summary-content" class="reports-summary">
-          <span id="day-summary-msg">Cargando…</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card__title">Ventas por período</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Totales de ventas y utilidad entre dos fechas (formato YYYY-MM-DD). Solo ventas completadas.</p>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="report-from">Desde</label>
-            <input type="date" id="report-from" />
-          </div>
-          <div class="form-group">
-            <label for="report-to">Hasta</label>
-            <input type="date" id="report-to" />
-          </div>
-          <button type="button" class="btn btn--primary" id="btn-period">Consultar</button>
-        </div>
-        <div id="period-summary-content" class="reports-summary mt-1">
-          <span id="period-summary-msg" class="text-muted">Indica las fechas y pulsa Consultar.</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card__title">Valor del inventario</div>
-        <p class="text-muted" style="margin: 0 0 .75rem;">Valor total en costo y a precio de venta (productos activos). Incluye cantidad de productos, unidades en stock y diferencia potencial.</p>
-        <div id="inventory-value-content" class="reports-summary">
-          <span id="inventory-value-msg">Cargando…</span>
-        </div>
       </div>
 
       <div class="card card--full-width">
@@ -108,9 +75,62 @@
         <div class="table-pagination" id="top-products-pagination"></div>
         <p class="text-muted mt-1 mb-0" id="top-products-msg">Cargando…</p>
       </div>
-      </div>
     </main>
   </div>
+
+  <!-- Modal: Cierre del día -->
+  <div id="report-modal-day" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Cierre del día (hoy)</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Resumen de ventas del día actual: cantidad de ventas, totales en USD y Bs, costo de lo vendido, utilidad y margen.</p>
+      <div id="day-summary-content" class="reports-summary">
+        <span id="day-summary-msg">Cargando…</span>
+      </div>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" id="report-modal-day-close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Ventas por período -->
+  <div id="report-modal-period" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Ventas por período</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Totales de ventas entre dos fechas (formato YYYY-MM-DD). Solo ventas completadas.</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="report-from">Desde</label>
+          <input type="date" id="report-from" />
+        </div>
+        <div class="form-group">
+          <label for="report-to">Hasta</label>
+          <input type="date" id="report-to" />
+        </div>
+        <button type="button" class="btn btn--primary" id="btn-period">Consultar</button>
+      </div>
+      <div id="period-summary-content" class="reports-summary mt-1">
+        <span id="period-summary-msg" class="text-muted">Indica las fechas y pulsa Consultar.</span>
+      </div>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" id="report-modal-period-close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Valor del inventario -->
+  <div id="report-modal-inventory" class="overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal" style="max-width: 28rem;">
+      <h2 class="modal__title">Valor del inventario</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Valor total en costo y a precio de venta (productos activos). Incluye cantidad de productos, unidades en stock y diferencia potencial.</p>
+      <div id="inventory-value-content" class="reports-summary">
+        <span id="inventory-value-msg">Cargando…</span>
+      </div>
+      <div class="modal__actions" style="margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" id="report-modal-inventory-close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     document.addEventListener('keydown', function(e) {
       if (!e.ctrlKey) return;
@@ -119,8 +139,7 @@
       if (e.key === '3') { e.preventDefault(); location.href = '/pages/inventory.html'; }
       if (e.key === '4') { e.preventDefault(); location.href = '/pages/sales-history.html'; }
       if (e.key === '5') { e.preventDefault(); location.href = '/pages/reports.html'; }
-      if (e.key === '6') { e.preventDefault(); location.href = '/pages/entries.html'; }
-      if (e.key === '7') { e.preventDefault(); location.href = '/pages/clients.html'; }
+      if (e.key === '6') { e.preventDefault(); location.href = '/pages/clients.html'; }
       if (e.key === '8') { e.preventDefault(); location.href = '/pages/settings.html'; }
     });
   </script>

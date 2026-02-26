@@ -131,36 +131,6 @@ function setupDashboardModals() {
         btnCloseLow.addEventListener('click', () => { modalLow.style.display = 'none'; });
     }
 }
-document.getElementById('btn-print-summary')?.addEventListener('click', async () => {
-    if (typeof window.openPrintWindow !== 'function') return;
-    try {
-        const [products, lowStock, rateRes, sales] = await Promise.all([
-            getJson('/api/products'),
-            getJson('/api/products/low-stock'),
-            getJson('/api/settings/exchange-rate'),
-            getJson('/api/sales?limit=50'),
-        ]);
-        const today = todayStr();
-        const salesToday = (sales || []).filter((s) => (s.createdAt || '').slice(0, 10) === today);
-        let html = '<h1>Resumen - KUMA</h1>';
-        html += '<h2>Resumen del día</h2><p><strong>Productos activos:</strong> ' + (products?.length ?? 0) + ' · <strong>Bajo stock:</strong> ' + (lowStock?.length ?? 0) + ' · <strong>Tasa USD→Bs:</strong> ' + Number(rateRes?.exchangeRate ?? 0).toFixed(2) + ' · <strong>Ventas hoy:</strong> ' + salesToday.length + '</p>';
-        html += '<h2>Últimas ventas</h2><table><thead><tr><th>#</th><th>Fecha</th><th>Total USD</th><th>Total Bs</th><th>Items</th></tr></thead><tbody>';
-        (sales || []).slice(0, 20).forEach((s) => {
-            html += '<tr><td>' + s.id + '</td><td>' + formatDate(s.createdAt) + '</td><td>$' + Number(s.totalUsd).toFixed(2) + '</td><td>Bs ' + Number(s.totalBs).toFixed(2) + '</td><td>' + (s.itemCount ?? '—') + '</td></tr>';
-        });
-        html += '</tbody></table>';
-        html += '<h2>Productos con bajo stock</h2><table><thead><tr><th>Producto</th><th>SKU</th><th>En stock</th><th>Mínimo</th><th>Faltan</th></tr></thead><tbody>';
-        (lowStock || []).forEach((p) => {
-            html += '<tr><td>' + String(p.name || p.sku || '').replace(/</g, '&lt;') + '</td><td>' + String(p.sku || '').replace(/</g, '&lt;') + '</td><td>' + (p.quantity ?? 0) + '</td><td>' + (p.minimumStock ?? '') + '</td><td>' + (p.missingUnits ?? (p.minimumStock - p.quantity)) + '</td></tr>';
-        });
-        html += '</tbody></table>';
-        window.openPrintWindow('Resumen - KUMA', html);
-    } catch (e) {
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al generar el resumen.', type: 'error' });
-        else alert('Error al generar el resumen.');
-    }
-});
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => { });
 }

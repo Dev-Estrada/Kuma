@@ -1,4 +1,7 @@
 const API = '';
+const ROWS_PER_PAGE = 7;
+let topProductsData = [];
+let currentTopProductsPage = 1;
 async function getJson(url) {
     const res = await fetch(`${API}${url}`);
     if (!res.ok)
@@ -15,9 +18,11 @@ function todayStr() {
 async function loadDaySummary() {
     const msg = document.getElementById('day-summary-msg');
     const content = document.getElementById('day-summary-content');
+    if (!content) return;
+    if (msg) msg.textContent = 'Cargando…';
     try {
         const data = await getJson('/api/reports/day-summary-with-profit');
-        msg.remove();
+        if (msg) msg.remove();
         const cost = data.totalCostUsd ?? 0;
         const profit = data.profitUsd ?? (data.totalUsd ?? 0) - cost;
         const margin = data.marginPercent ?? ((data.totalUsd ?? 0) > 0 ? (profit / (data.totalUsd ?? 0)) * 100 : 0);
@@ -31,7 +36,7 @@ async function loadDaySummary() {
     `;
     }
     catch (e) {
-        msg.textContent = 'Error al cargar el resumen del día.';
+        if (msg) msg.textContent = 'Error al cargar el resumen del día.';
         if (typeof window.showAlert === 'function')
             window.showAlert({ title: 'Error', message: 'Error al cargar el resumen del día.', type: 'error' });
     }
@@ -39,9 +44,11 @@ async function loadDaySummary() {
 async function loadInventoryValue() {
     const msg = document.getElementById('inventory-value-msg');
     const content = document.getElementById('inventory-value-content');
+    if (!content) return;
+    if (msg) msg.textContent = 'Cargando…';
     try {
         const data = await getJson('/api/reports/inventory-value');
-        msg.remove();
+        if (msg) msg.remove();
         content.innerHTML = `
       <div class="reports-summary__row"><strong>Valor en costo:</strong> $${Number(data.totalCostValue ?? 0).toFixed(2)} USD</div>
       <div class="reports-summary__row"><strong>Valor a precio de venta:</strong> $${Number(data.totalListValue ?? 0).toFixed(2)} USD</div>
@@ -49,50 +56,61 @@ async function loadInventoryValue() {
     `;
     }
     catch (e) {
-        msg.textContent = 'Error al cargar valor del inventario.';
+        if (msg) msg.textContent = 'Error al cargar valor del inventario.';
         if (typeof window.showAlert === 'function')
             window.showAlert({ title: 'Error', message: 'Error al cargar valor del inventario.', type: 'error' });
     }
 }
-const ROWS_PER_PAGE = 7;
-let topProductsList = [];
-let topProductsPage = 1;
-function renderTopProductsPagination(containerId, totalItems, currentPage, onPageChange) {
+function renderPagination(containerId, totalItems, currentPage, onPageChange) {
     const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
     const el = document.getElementById(containerId);
-    if (!el) return;
-    if (totalItems === 0) { el.innerHTML = ''; return; }
-    const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
-    const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
-    el.innerHTML = '<span class="table-pagination__range">Mostrando ' + start + '-' + end + ' de ' + totalItems + '</span><div class="table-pagination__nav"><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-prev"' + (currentPage <= 1 ? ' disabled' : '') + '>Anterior</button><span>Página ' + currentPage + ' de ' + totalPages + '</span><button type="button" class="btn btn--ghost btn--sm" id="' + containerId + '-next"' + (currentPage >= totalPages ? ' disabled' : '') + '>Siguiente</button></div>';
-    document.getElementById(containerId + '-prev')?.addEventListener('click', function () { if (currentPage > 1) onPageChange(currentPage - 1); });
-    document.getElementById(containerId + '-next')?.addEventListener('click', function () { if (currentPage < totalPages) onPageChange(currentPage + 1); });
-}
-function renderTopProducts(data, page) {
-    const tbody = document.getElementById('top-products-tbody');
-    const msg = document.getElementById('top-products-msg');
-    if (!data.length) {
-        msg.textContent = 'No hay ventas registradas.';
-        tbody.innerHTML = '';
-        document.getElementById('top-products-pagination').innerHTML = '';
+    if (!el)
+        return;
+    if (totalItems === 0) {
+        el.innerHTML = '';
         return;
     }
-    msg.textContent = '';
+    const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
+    const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+    el.innerHTML =
+        `<span class="table-pagination__range">Mostrando ${start}-${end} de ${totalItems}</span>` +
+            `<div class="table-pagination__nav">` +
+            `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-prev" ${currentPage <= 1 ? ' disabled' : ''}>Anterior</button>` +
+            `<span>Página ${currentPage} de ${totalPages}</span>` +
+            `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-next" ${currentPage >= totalPages ? ' disabled' : ''}>Siguiente</button>` +
+            `</div>`;
+    document.getElementById(`${containerId}-prev`)?.addEventListener('click', () => { if (currentPage > 1)
+        onPageChange(currentPage - 1); });
+    document.getElementById(`${containerId}-next`)?.addEventListener('click', () => { if (currentPage < totalPages)
+        onPageChange(currentPage + 1); });
+}
+function renderTopProductsTable(data, page = 1) {
+    const tbody = document.getElementById('top-products-tbody');
+    const paginationEl = document.getElementById('top-products-pagination');
     const totalPages = Math.ceil(data.length / ROWS_PER_PAGE) || 1;
-    const p = Math.max(1, Math.min(page || 1, totalPages));
+    const p = Math.max(1, Math.min(page, totalPages));
     const slice = data.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
     tbody.innerHTML = slice
         .map((row, i) => {
-            const idx = (p - 1) * ROWS_PER_PAGE + i + 1;
-            const cost = row.totalCostUsd ?? 0;
-            const profit = row.profitUsd ?? (Number(row.totalUsd) - cost);
-            const margin = (row.totalUsd ?? 0) > 0 ? (row.marginPercent ?? (profit / Number(row.totalUsd) * 100)) : 0;
-            return '<tr><td>' + idx + '</td><td>' + (row.productName || '—').replace(/</g, '&lt;') + '</td><td>' + (row.productSku || '—').replace(/</g, '&lt;') + '</td><td>' + row.totalQuantity + '</td><td>$' + Number(row.totalUsd).toFixed(2) + '</td><td>$' + Number(cost).toFixed(2) + '</td><td>$' + Number(profit).toFixed(2) + '</td><td>' + Number(margin).toFixed(1) + '%</td></tr>';
-        })
+        const cost = row.totalCostUsd ?? 0;
+        const profit = row.profitUsd ?? (Number(row.totalUsd) - cost);
+        const margin = (row.totalUsd ?? 0) > 0 ? ((row.marginPercent ?? (profit / Number(row.totalUsd) * 100))) : 0;
+        const globalIndex = (p - 1) * ROWS_PER_PAGE + i + 1;
+        return `<tr>
+          <td>${globalIndex}</td>
+          <td>${(row.productName || '—').replace(/</g, '&lt;')}</td>
+          <td>${(row.productSku || '—').replace(/</g, '&lt;')}</td>
+          <td>${row.totalQuantity}</td>
+          <td>$${Number(row.totalUsd).toFixed(2)}</td>
+          <td>$${Number(cost).toFixed(2)}</td>
+          <td>$${Number(profit).toFixed(2)}</td>
+          <td>${Number(margin).toFixed(1)}%</td>
+        </tr>`;
+    })
         .join('');
-    renderTopProductsPagination('top-products-pagination', data.length, p, function (newPage) {
-        topProductsPage = newPage;
-        renderTopProducts(topProductsList, newPage);
+    renderPagination('top-products-pagination', data.length, p, (newPage) => {
+        currentTopProductsPage = newPage;
+        renderTopProductsTable(topProductsData, newPage);
     });
 }
 async function loadTopProducts() {
@@ -100,9 +118,16 @@ async function loadTopProducts() {
     const msg = document.getElementById('top-products-msg');
     try {
         const data = await getJson('/api/reports/top-products?limit=100');
-        topProductsList = data;
-        topProductsPage = 1;
-        renderTopProducts(data, 1);
+        topProductsData = data;
+        currentTopProductsPage = 1;
+        if (data.length === 0) {
+            msg.textContent = 'No hay ventas registradas.';
+            tbody.innerHTML = '';
+            document.getElementById('top-products-pagination').innerHTML = '';
+            return;
+        }
+        msg.textContent = '';
+        renderTopProductsTable(data, 1);
     }
     catch (e) {
         msg.textContent = 'Error al cargar productos más vendidos.';
@@ -148,46 +173,79 @@ if (fromInput && toInput) {
     fromInput.value = today;
     toInput.value = today;
 }
-document.getElementById('btn-print-report')?.addEventListener('click', async () => {
-    if (typeof window.openPrintWindow !== 'function') return;
-    try {
-        const [dayData, invData, topData] = await Promise.all([
-            getJson('/api/reports/day-summary-with-profit').catch(() => ({})),
-            getJson('/api/reports/inventory-value').catch(() => ({})),
-            getJson('/api/reports/top-products?limit=100').catch(() => []),
-        ]);
-        const from = fromInput?.value?.trim();
-        const to = toInput?.value?.trim();
-        let periodHtml = '';
-        if (from && to && from <= to) {
-            try {
-                const periodData = await getJson(`/api/reports/sales-by-period?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
-                periodHtml = '<h2>Ventas por período (' + from + ' a ' + to + ')</h2><div class="reports-summary__row"><strong>Ventas:</strong> ' + (periodData.count ?? 0) + '</div><div class="reports-summary__row"><strong>Total USD:</strong> $' + Number(periodData.totalUsd ?? 0).toFixed(2) + '</div><div class="reports-summary__row"><strong>Total Bs:</strong> Bs ' + Number(periodData.totalBs ?? 0).toFixed(2) + '</div>';
-            } catch (_) { }
-        }
-        const cost = dayData.totalCostUsd ?? 0;
-        const profit = dayData.profitUsd ?? ((dayData.totalUsd ?? 0) - cost);
-        const margin = (dayData.totalUsd ?? 0) > 0 ? (profit / (dayData.totalUsd ?? 0)) * 100 : 0;
-        let html = '<h1>Reporte - KUMA</h1>';
-        html += '<h2>Cierre del día (hoy)</h2><div class="reports-summary__row"><strong>Ventas hoy:</strong> ' + (dayData.count ?? 0) + '</div><div class="reports-summary__row"><strong>Total USD:</strong> $' + Number(dayData.totalUsd ?? 0).toFixed(2) + '</div><div class="reports-summary__row"><strong>Total Bs:</strong> Bs ' + Number(dayData.totalBs ?? 0).toFixed(2) + '</div><div class="reports-summary__row"><strong>Costo USD:</strong> $' + Number(cost).toFixed(2) + '</div><div class="reports-summary__row"><strong>Utilidad USD:</strong> $' + Number(profit).toFixed(2) + '</div><div class="reports-summary__row"><strong>Margen %:</strong> ' + Number(margin).toFixed(1) + '%</div>';
-        if (periodHtml) html += periodHtml;
-        html += '<h2>Valor del inventario</h2><div class="reports-summary__row"><strong>Valor en costo:</strong> $' + Number(invData.totalCostValue ?? 0).toFixed(2) + ' USD</div><div class="reports-summary__row"><strong>Valor a precio de venta:</strong> $' + Number(invData.totalListValue ?? 0).toFixed(2) + ' USD</div><div class="reports-summary__row"><strong>Productos:</strong> ' + (invData.totalProducts ?? 0) + ' · <strong>Unidades:</strong> ' + (invData.totalUnits ?? 0) + '</div>';
-        html += '<h2>Productos más vendidos</h2><table><thead><tr><th>#</th><th>Producto</th><th>SKU</th><th>Cant. vendida</th><th>Ventas USD</th><th>Costo USD</th><th>Utilidad USD</th><th>Margen %</th></tr></thead><tbody>';
-        (topData || []).slice(0, 50).forEach((row, i) => {
-            const costR = row.totalCostUsd ?? 0;
-            const profitR = row.profitUsd ?? (Number(row.totalUsd) - costR);
-            const marginR = (row.totalUsd ?? 0) > 0 ? (row.marginPercent ?? (profitR / Number(row.totalUsd) * 100)) : 0;
-            html += '<tr><td>' + (i + 1) + '</td><td>' + String(row.productName || '—').replace(/</g, '&lt;') + '</td><td>' + String(row.productSku || '—').replace(/</g, '&lt;') + '</td><td>' + row.totalQuantity + '</td><td>$' + Number(row.totalUsd).toFixed(2) + '</td><td>$' + Number(costR).toFixed(2) + '</td><td>$' + Number(profitR).toFixed(2) + '</td><td>' + Number(marginR).toFixed(1) + '%</td></tr>';
-        });
-        html += '</tbody></table>';
-        window.openPrintWindow('Reporte - KUMA', html);
-    } catch (e) {
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al generar el reporte.', type: 'error' });
-        else alert('Error al generar el reporte.');
+function openReportModal(modalId, onOpen) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+        if (typeof onOpen === 'function')
+            onOpen();
     }
+}
+function closeReportModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal)
+        modal.style.display = 'none';
+}
+document.getElementById('btn-report-day')?.addEventListener('click', () => {
+    openReportModal('report-modal-day', () => loadDaySummary());
 });
-loadDaySummary();
-loadInventoryValue();
+document.getElementById('btn-report-period')?.addEventListener('click', () => {
+    const fromInput = document.getElementById('report-from');
+    const toInput = document.getElementById('report-to');
+    if (fromInput && toInput && !fromInput.value)
+        fromInput.value = toInput.value = todayStr();
+    openReportModal('report-modal-period');
+});
+document.getElementById('btn-report-inventory')?.addEventListener('click', () => {
+    openReportModal('report-modal-inventory', () => loadInventoryValue());
+});
+document.getElementById('report-modal-day-close')?.addEventListener('click', () => closeReportModal('report-modal-day'));
+document.getElementById('report-modal-period-close')?.addEventListener('click', () => closeReportModal('report-modal-period'));
+document.getElementById('report-modal-inventory-close')?.addEventListener('click', () => closeReportModal('report-modal-inventory'));
+document.getElementById('report-modal-day')?.addEventListener('click', (e) => { if (e.target.id === 'report-modal-day') closeReportModal('report-modal-day'); });
+document.getElementById('report-modal-period')?.addEventListener('click', (e) => { if (e.target.id === 'report-modal-period') closeReportModal('report-modal-period'); });
+document.getElementById('report-modal-inventory')?.addEventListener('click', (e) => { if (e.target.id === 'report-modal-inventory') closeReportModal('report-modal-inventory'); });
+
+document.getElementById('btn-print-report')?.addEventListener('click', async () => {
+    const openPrintWindow = window.openPrintWindow;
+    if (typeof openPrintWindow !== 'function') {
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'No se pudo abrir la ventana de impresión.', type: 'error' });
+        else
+            alert('No se pudo abrir la ventana de impresión.');
+        return;
+    }
+    let dayContent = document.getElementById('day-summary-content')?.innerHTML ?? '';
+    const periodContent = document.getElementById('period-summary-content')?.innerHTML ?? '';
+    let invContent = document.getElementById('inventory-value-content')?.innerHTML ?? '';
+    if (dayContent.includes('day-summary-msg') || dayContent.includes('Cargando')) {
+        try {
+            const data = await getJson('/api/reports/day-summary-with-profit');
+            const cost = data.totalCostUsd ?? 0;
+            const profit = data.profitUsd ?? (data.totalUsd ?? 0) - cost;
+            const margin = data.marginPercent ?? ((data.totalUsd ?? 0) > 0 ? (profit / (data.totalUsd ?? 0)) * 100 : 0);
+            dayContent = `<div class="reports-summary__row"><strong>Ventas hoy:</strong> ${data.count}</div><div class="reports-summary__row"><strong>Total USD:</strong> $${Number(data.totalUsd ?? 0).toFixed(2)}</div><div class="reports-summary__row"><strong>Total Bs:</strong> Bs ${Number(data.totalBs ?? 0).toFixed(2)}</div><div class="reports-summary__row"><strong>Costo USD:</strong> $${Number(cost).toFixed(2)}</div><div class="reports-summary__row"><strong>Utilidad USD:</strong> $${Number(profit).toFixed(2)}</div><div class="reports-summary__row"><strong>Margen %:</strong> ${Number(margin).toFixed(1)}%</div>`;
+        }
+        catch (_) { dayContent = '—'; }
+    }
+    if (invContent.includes('inventory-value-msg') || invContent.includes('Cargando')) {
+        try {
+            const data = await getJson('/api/reports/inventory-value');
+            invContent = `<div class="reports-summary__row"><strong>Valor en costo:</strong> $${Number(data.totalCostValue ?? 0).toFixed(2)} USD</div><div class="reports-summary__row"><strong>Valor a precio de venta:</strong> $${Number(data.totalListValue ?? 0).toFixed(2)} USD</div><div class="reports-summary__row"><strong>Productos:</strong> ${data.totalProducts ?? 0} · <strong>Unidades:</strong> ${data.totalUnits ?? 0}</div>`;
+        }
+        catch (_) { invContent = '—'; }
+    }
+    const topRows = topProductsData
+        .map((row, i) => {
+        const cost = row.totalCostUsd ?? 0;
+        const profit = row.profitUsd ?? (Number(row.totalUsd) - cost);
+        const margin = (row.totalUsd ?? 0) > 0 ? ((row.marginPercent ?? (profit / Number(row.totalUsd) * 100))) : 0;
+        return `<tr><td>${i + 1}</td><td>${(row.productName || '—').replace(/</g, '&lt;')}</td><td>${(row.productSku || '—').replace(/</g, '&lt;')}</td><td>${row.totalQuantity}</td><td>$${Number(row.totalUsd).toFixed(2)}</td><td>$${Number(cost).toFixed(2)}</td><td>$${Number(profit).toFixed(2)}</td><td>${Number(margin).toFixed(1)}%</td></tr>`;
+    })
+        .join('');
+    const topTable = `<h2>Productos más vendidos</h2><table><thead><tr><th>#</th><th>Producto</th><th>SKU</th><th>Cant. vendida</th><th>Ventas USD</th><th>Costo USD</th><th>Utilidad USD</th><th>Margen %</th></tr></thead><tbody>${topRows}</tbody></table>`;
+    const html = '<h1>Reporte</h1><h2>Cierre del día (hoy)</h2><div class="reports-summary">' + dayContent + '</div><h2>Ventas por período</h2><div class="reports-summary">' + periodContent + '</div><h2>Valor del inventario</h2><div class="reports-summary">' + invContent + '</div>' + topTable;
+    openPrintWindow('Reporte', html);
+});
 loadTopProducts();
 export {};

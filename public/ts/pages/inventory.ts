@@ -19,9 +19,13 @@ interface Product {
   isFavorite?: boolean;
 }
 
+const ROWS_PER_PAGE = 7;
+
 let allCategories: Category[] = [];
 let currentProducts: Product[] = [];
 let editingProduct: Product | null = null;
+let lowStockMode = false;
+let currentInventoryPage = 1;
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(`${API}${url}`);
@@ -62,9 +66,34 @@ function escapeHtml(s: string): string {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 }
 
-function renderTable(products: Product[]) {
+function renderPagination(containerId: string, totalItems: number, currentPage: number, onPageChange: (page: number) => void) {
+  const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE) || 1;
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (totalItems === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  const start = (currentPage - 1) * ROWS_PER_PAGE + 1;
+  const end = Math.min(currentPage * ROWS_PER_PAGE, totalItems);
+  el.innerHTML =
+    `<span class="table-pagination__range">Mostrando ${start}-${end} de ${totalItems}</span>` +
+    `<div class="table-pagination__nav">` +
+    `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-prev" ${currentPage <= 1 ? ' disabled' : ''}>Anterior</button>` +
+    `<span>Página ${currentPage} de ${totalPages}</span>` +
+    `<button type="button" class="btn btn--ghost btn--sm" id="${containerId}-next" ${currentPage >= totalPages ? ' disabled' : ''}>Siguiente</button>` +
+    `</div>`;
+  document.getElementById(`${containerId}-prev`)?.addEventListener('click', () => { if (currentPage > 1) onPageChange(currentPage - 1); });
+  document.getElementById(`${containerId}-next`)?.addEventListener('click', () => { if (currentPage < totalPages) onPageChange(currentPage + 1); });
+}
+
+function renderTable(products: Product[], page = 1) {
   const tbody = document.getElementById('products-tbody')!;
-  tbody.innerHTML = products
+  const paginationEl = document.getElementById('products-pagination')!;
+  const totalPages = Math.ceil(products.length / ROWS_PER_PAGE) || 1;
+  const p = Math.max(1, Math.min(page, totalPages));
+  const slice = products.slice((p - 1) * ROWS_PER_PAGE, p * ROWS_PER_PAGE);
+  tbody.innerHTML = slice
     .map(
       (p) =>
         `<tr>
@@ -86,15 +115,23 @@ function renderTable(products: Product[]) {
         </tr>`
     )
     .join('');
+  renderPagination('products-pagination', products.length, p, (newPage) => {
+    currentInventoryPage = newPage;
+    renderTable(currentProducts, newPage);
+  });
 }
 
 async function loadAndRender() {
+  lowStockMode = false;
+  currentInventoryPage = 1;
+  const btnLow = document.getElementById('btn-low-stock');
+  if (btnLow) btnLow.textContent = 'Bajo stock';
   const q = (document.getElementById('search') as HTMLInputElement).value.trim();
   const catId = (document.getElementById('category-filter') as HTMLSelectElement).value;
   let list = await fetchProducts(q || undefined);
   if (catId) list = list.filter((p) => String(p.categoryId) === catId);
   currentProducts = list;
-  renderTable(list);
+  renderTable(list, 1);
 }
 
 const modal = document.getElementById('product-modal')!;
@@ -280,8 +317,17 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
 document.getElementById('search')?.addEventListener('input', () => loadAndRender());
 document.getElementById('category-filter')?.addEventListener('change', () => loadAndRender());
 document.getElementById('btn-low-stock')?.addEventListener('click', async () => {
+  if (lowStockMode) {
+    loadAndRender();
+    return;
+  }
   const list = await getJson<Product[]>('/api/products/low-stock');
-  renderTable(list);
+  currentProducts = list;
+  lowStockMode = true;
+  currentInventoryPage = 1;
+  const btnLow = document.getElementById('btn-low-stock');
+  if (btnLow) btnLow.textContent = 'Ver todo el inventario';
+  renderTable(list, 1);
 });
 
 async function loadLowStockBanner() {
@@ -297,6 +343,29 @@ async function loadLowStockBanner() {
     }
   } catch (_) {}
 }
+
+document.getElementById('btn-print-catalog')?.addEventListener('click', () => {
+  const openPrintWindow = (window as any).openPrintWindow;
+  if (typeof openPrintWindow !== 'function') {
+    if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: 'No se pudo abrir la ventana de impresión.', type: 'error' });
+    else alert('No se pudo abrir la ventana de impresión.');
+    return;
+  }
+  const list = currentProducts;
+  if (list.length === 0) {
+    if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Aviso', message: 'No hay productos para imprimir.', type: 'warning' });
+    else alert('No hay productos para imprimir.');
+    return;
+  }
+  const rows = list
+    .map(
+      (p) =>
+        `<tr><td>${p.id ?? ''}</td><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.barcode ?? '')}</td><td>${escapeHtml(p.name ?? '')}</td><td>$${(p.listPrice ?? 0).toFixed(2)}</td><td>$${(p.costPrice ?? 0).toFixed(2)}</td><td>${p.quantity ?? 0}</td><td>${p.minimumStock ?? 0}</td><td>${escapeHtml(p.categoryName ?? '')}</td></tr>`
+    )
+    .join('');
+  const html = '<h1>Catálogo de inventario</h1><table><thead><tr><th>ID</th><th>SKU</th><th>Cód. barras</th><th>Nombre</th><th>P. venta USD</th><th>P. costo USD</th><th>Cantidad</th><th>Mínimo</th><th>Categoría</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  openPrintWindow('Catálogo de inventario', html);
+});
 
 loadCategories().then(() => {
   loadAndRender();

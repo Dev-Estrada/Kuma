@@ -200,27 +200,7 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
       FROM products
       WHERE isActive = 1;
 
-      INSERT OR IGNORE INTO categories (name, description) VALUES
-          ('Comida y Bebidas', 'Alimentos y bebidas en general'),
-          ('Abarrotes', 'Granos, enlatados, conservas'),
-          ('Snacks', 'Papas, galletas, golosinas saladas'),
-          ('Dulcería', 'Chocolates, caramelos, chicles'),
-          ('Panadería', 'Pan, bollería, repostería'),
-          ('Lácteos', 'Leche, queso, yogurt, mantequilla'),
-          ('Bebidas', 'Refrescos, jugos, agua, energizantes'),
-          ('Congelados', 'Productos congelados'),
-          ('Frescos', 'Verduras, frutas, huevos'),
-          ('Limpieza', 'Detergentes, cloro, desinfectantes'),
-          ('Higiene personal', 'Jabón, shampoo, papel higiénico'),
-          ('Papelería', 'Cuadernos, lápices, útiles escolares'),
-          ('Electrónica', 'Pilas, cables, accesorios'),
-          ('Oficina', 'Útiles de oficina'),
-          ('Empaques', 'Bolsas, envases, empaque'),
-          ('Mascotas', 'Alimento y accesorios para mascotas'),
-          ('Cuidado del bebé', 'Pañales, fórmulas, biberones'),
-          ('Farmacia básica', 'Medicamentos de venta libre'),
-          ('Hogar', 'Artículos para el hogar'),
-          ('Otros', 'Otros productos');
+      // Las categorías las crea el usuario desde la página Categorías (sin datos por defecto).
     `);
 
     const rateHistoryCount = await db.get<{ c: number }>('SELECT COUNT(*) as c FROM exchange_rate_history');
@@ -261,6 +241,12 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
     await addColumnIfMissing('ALTER TABLE sales ADD COLUMN voidedAt TEXT');
     await addColumnIfMissing('ALTER TABLE sales ADD COLUMN voidReason TEXT');
     await addColumnIfMissing('ALTER TABLE sales ADD COLUMN clientId INTEGER');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN paymentMethod TEXT');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN paymentBankCode TEXT');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN paymentReference TEXT');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN paymentCashReceived REAL');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN paymentChangeUsd REAL');
+    await addColumnIfMissing('ALTER TABLE sales ADD COLUMN paymentChangeBs REAL');
     try {
       await db.run('UPDATE sales SET status = \'completada\' WHERE status IS NULL');
     } catch (_) {
