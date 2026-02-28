@@ -65,7 +65,7 @@ function renderProductGrid(list: Product[], resetPage = true) {
   currentProductList = withStock;
   if (resetPage) productGridPage = 1;
   if (withStock.length === 0) {
-    grid.innerHTML = '<div class="product-grid__empty">No hay productos con stock disponible. Revisa el inventario.</div>';
+    grid.innerHTML = '<div class="product-grid__empty">No hay Productos con stock disponible. Revisa el inventario.</div>';
     if (paginationEl) paginationEl.innerHTML = '';
     return;
   }
@@ -108,7 +108,7 @@ function renderCart() {
   const container = document.getElementById('cart-items')!;
   const totalsSection = document.getElementById('cart-totals')!;
   if (cart.length === 0) {
-    container.innerHTML = '<div class="cart__empty">Añade productos desde la lista</div>';
+    container.innerHTML = '<div class="cart__empty">Añade Productos desde la lista</div>';
     totalsSection.style.display = 'none';
     return;
   }
@@ -207,7 +207,7 @@ function increaseQty(productId: number) {
 }
 
 function clearCart() {
-  if (cart.length > 0 && !confirm('¿Vaciar todo el carrito?')) return;
+  if (cart.length > 0 && !confirm('¿Vaciar todo la factura?')) return;
   cart = [];
   renderCart();
 }
@@ -252,7 +252,7 @@ const METHODS_WITH_BANK_REF: PaymentMethodType[] = ['pago_movil', 'tarjeta_debit
 
 function openPaymentModal() {
   if (cart.length === 0) {
-    showMsg('Añade al menos un producto al carrito.', true);
+    showMsg('Añade al menos un producto a la factura.', true);
     return;
   }
   const { totalUsd, totalBs, discountPercent } = getTotals();
@@ -318,9 +318,13 @@ function openPaymentModal() {
         }
         if (p.reference) extra += ` · Ref: ${String(p.reference).replace(/</g, '&lt;')}`;
         const amountBs = Math.round((p.amountUsd * exchangeRate) * 100) / 100;
+        const amountLine = `$${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})${extra ? ` · ${extra}` : ''}`;
         return `<li class="payment-list-item">
-          <span>${label} · $${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})${extra ? ` <span class="text-muted">${extra}</span>` : ''}</span>
-          <button type="button" class="btn btn--ghost btn--sm payment-remove-btn" data-index="${i}" aria-label="Quitar">Quitar</button>
+          <div class="payment-list-item__row">
+            <span class="payment-list-item__label">${label}</span>
+            <button type="button" class="btn btn--ghost btn--sm payment-remove-btn" data-index="${i}" aria-label="Quitar">Quitar</button>
+          </div>
+          <span class="payment-list-item__amount">${amountLine}</span>
         </li>`;
       })
       .join('');

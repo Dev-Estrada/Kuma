@@ -26,17 +26,19 @@ export class ProductService {
   }
 
   async create(prod: Product): Promise<number> {
-    if (!prod.name.trim()) {
+    const name = prod?.name != null ? String(prod.name).trim() : '';
+    const sku = prod?.sku != null ? String(prod.sku).trim() : '';
+    if (!name) {
       throw new Error('El nombre es obligatorio');
     }
-    if (!prod.sku.trim()) {
+    if (!sku) {
       throw new Error('El SKU es obligatorio');
     }
-    const existingSku = await this.repo.getBySku(prod.sku.trim());
+    const existingSku = await this.repo.getBySku(sku);
     if (existingSku) {
       throw new Error('Ya existe un producto con ese SKU.');
     }
-    const barcode = (prod.barcode && prod.barcode.trim()) || null;
+    const barcode = (prod.barcode && String(prod.barcode).trim()) || null;
     if (barcode) {
       const existingBarcode = await this.repo.getByBarcode(barcode);
       if (existingBarcode) {
@@ -52,21 +54,23 @@ export class ProductService {
     if (prod.costPrice !== undefined && prod.costPrice < 0) {
       throw new Error('El precio de costo no puede ser negativo');
     }
-    return this.repo.create(prod);
+    return this.repo.create({ ...prod, name, sku });
   }
 
   async update(id: number, prod: Product): Promise<void> {
-    if (!prod.name.trim()) {
+    const name = prod?.name != null ? String(prod.name).trim() : '';
+    const sku = prod?.sku != null ? String(prod.sku).trim() : '';
+    if (!name) {
       throw new Error('El nombre es obligatorio');
     }
-    if (!prod.sku.trim()) {
+    if (!sku) {
       throw new Error('El SKU es obligatorio');
     }
-    const existingSku = await this.repo.getBySku(prod.sku.trim(), id);
+    const existingSku = await this.repo.getBySku(sku, id);
     if (existingSku) {
       throw new Error('Ya existe otro producto con ese SKU.');
     }
-    const barcode = (prod.barcode && prod.barcode.trim()) || null;
+    const barcode = (prod.barcode && String(prod.barcode).trim()) || null;
     if (barcode) {
       const existingBarcode = await this.repo.getByBarcode(barcode, id);
       if (existingBarcode) {
@@ -82,7 +86,7 @@ export class ProductService {
     if (prod.costPrice !== undefined && prod.costPrice < 0) {
       throw new Error('El precio de costo no puede ser negativo');
     }
-    await this.repo.update(id, prod);
+    await this.repo.update(id, { ...prod, name, sku });
   }
 
   async delete(id: number): Promise<void> {

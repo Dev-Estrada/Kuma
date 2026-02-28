@@ -16,7 +16,7 @@
   function showAlertModal(options) {
     const root = document.getElementById('alert-modal-root');
     if (!root) return;
-    const { title = 'Aviso', message = '', type = 'warning', link = '', linkText = '', skipNotificationSeen = false } = options;
+    const { title = 'Aviso', message = '', type = 'warning', link = '', linkText = '', skipNotificationSeen = false, onClose } = options;
     root.innerHTML = `
       <div class="alert-modal-overlay" id="alert-modal-overlay">
         <div class="alert-modal">
@@ -37,6 +37,7 @@
       root.style.display = 'none';
       root.innerHTML = '';
       document.body.classList.remove('alert-modal-open');
+      if (typeof onClose === 'function') onClose();
     }
     if (overlay) overlay.addEventListener('click', function (e) {
       if (e.target === overlay) close();

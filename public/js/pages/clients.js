@@ -41,7 +41,7 @@ function renderClients(list, page) {
   const msg = document.getElementById('clients-msg');
   if (!list.length) {
     tbody.innerHTML = '';
-    msg.textContent = 'No hay clientes. Crea uno con "Nuevo cliente".';
+    msg.textContent = 'No hay clientes. Crea uno con "Nuevo Cliente".';
     document.getElementById('clients-pagination').innerHTML = '';
     return;
   }
@@ -78,7 +78,7 @@ async function loadClients() {
 }
 
 function openModal(client = null) {
-  document.getElementById('client-modal-title').textContent = client ? 'Editar cliente' : 'Nuevo cliente';
+  document.getElementById('client-modal-title').textContent = client ? 'Editar cliente' : 'Nuevo Cliente';
   document.getElementById('client-id').value = client ? client.id : '';
   document.getElementById('client-name').value = client?.name ?? '';
   document.getElementById('client-document').value = client?.document ?? '';

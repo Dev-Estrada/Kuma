@@ -1018,7 +1018,7 @@ tr.row--voided td {
   color: var(--primary);
 }
 
-/* Carrito */
+/* Factura */
 .cart {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1190,7 +1190,7 @@ tr.row--voided td {
   font-size: 1rem;
 }
 
-/* Tasa de cambio visible */
+/* Tasa de Cambio visible */
 .exchange-badge {
   display: inline-flex;
   align-items: center;
@@ -1313,7 +1313,7 @@ tr.row--voided td {
   border-top: 1px solid var(--border);
 }
 
-/* Alertas (bajo stock) */
+/* Alertas (Bajo Stock) */
 .alert {
   display: flex;
   align-items: center;
@@ -1469,15 +1469,32 @@ tr.row--voided td {
 }
 .pos-payment-modal__box .payment-list-item {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  background: var(--bg, rgba(0, 0, 0, 0.02));
+}
+.pos-payment-modal__box .payment-list-item:last-child {
+  margin-bottom: 0;
+}
+.pos-payment-modal__box .payment-list-item .payment-list-item__row {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.875rem;
 }
-.pos-payment-modal__box .payment-list-item:last-child {
-  border-bottom: none;
+.pos-payment-modal__box .payment-list-item .payment-list-item__label {
+  font-weight: 600;
+  color: var(--text);
+}
+.pos-payment-modal__box .payment-list-item .payment-list-item__amount {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
 }
 @media (max-width: 520px) {
   .pos-payment-modal__box .pos-payment-modal__columns {

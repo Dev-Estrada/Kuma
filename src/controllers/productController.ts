@@ -9,7 +9,7 @@ export class ProductController {
       const items = await service.list();
       res.json(items);
     } catch (err) {
-      res.status(500).json({ error: 'Error al obtener los productos' });
+      res.status(500).json({ error: 'Error al obtener los Productos' });
     }
   }
 
@@ -92,7 +92,7 @@ export class ProductController {
       const items = await service.lowStock();
       res.json(items);
     } catch (err) {
-      res.status(500).json({ error: 'Error al obtener productos con poco stock' });
+      res.status(500).json({ error: 'Error al obtener Productos con poco stock' });
     }
   }
 
@@ -102,7 +102,7 @@ export class ProductController {
       const items = await service.getExpiring(days);
       res.json(items);
     } catch (err) {
-      res.status(500).json({ error: 'Error al obtener productos por vencer' });
+      res.status(500).json({ error: 'Error al obtener Productos por vencer' });
     }
   }
 

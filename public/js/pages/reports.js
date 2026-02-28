@@ -130,11 +130,11 @@ async function loadTopProducts() {
         renderTopProductsTable(data, 1);
     }
     catch (e) {
-        msg.textContent = 'Error al cargar productos más vendidos.';
+        msg.textContent = 'Error al cargar Productos más vendidos.';
         tbody.innerHTML = '';
         document.getElementById('top-products-pagination').innerHTML = '';
         if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al cargar productos más vendidos.', type: 'error' });
+            window.showAlert({ title: 'Error', message: 'Error al cargar Productos más vendidos.', type: 'error' });
     }
 }
 document.getElementById('btn-period')?.addEventListener('click', async () => {
@@ -244,7 +244,7 @@ document.getElementById('btn-print-report')?.addEventListener('click', async () 
     })
         .join('');
     const topTable = `<h2>Productos más vendidos</h2><table><thead><tr><th>#</th><th>Producto</th><th>SKU</th><th>Cant. vendida</th><th>Ventas USD</th><th>Costo USD</th><th>Utilidad USD</th><th>Margen %</th></tr></thead><tbody>${topRows}</tbody></table>`;
-    const html = '<h1>Reporte</h1><h2>Cierre del día (hoy)</h2><div class="reports-summary">' + dayContent + '</div><h2>Ventas por período</h2><div class="reports-summary">' + periodContent + '</div><h2>Valor del inventario</h2><div class="reports-summary">' + invContent + '</div>' + topTable;
+    const html = '<h1>Reporte</h1><h2>Cierre del Día (Hoy)</h2><div class="reports-summary">' + dayContent + '</div><h2>Ventas por período</h2><div class="reports-summary">' + periodContent + '</div><h2>Valor del Inventario</h2><div class="reports-summary">' + invContent + '</div>' + topTable;
     openPrintWindow('Reporte', html);
 });
 loadTopProducts();

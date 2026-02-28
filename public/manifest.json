@@ -1,7 +1,7 @@
 {
   "name": "KUMA",
   "short_name": "KUMA",
-  "description": "Punto de venta e inventario para pequeños negocios",
+  "description": "Punto de Venta e inventario para pequeños negocios",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#f0f2f5",

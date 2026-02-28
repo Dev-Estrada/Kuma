@@ -99,7 +99,7 @@ async function loadAndRender() {
     currentInventoryPage = 1;
     const btnLow = document.getElementById('btn-low-stock');
     if (btnLow)
-        btnLow.textContent = 'Bajo stock';
+        btnLow.textContent = 'Bajo Stock';
     const q = document.getElementById('search').value.trim();
     const catId = document.getElementById('category-filter').value;
     let list = await fetchProducts(q || undefined);
@@ -129,7 +129,7 @@ function openModal(editProduct) {
         document.getElementById('category').value = editProduct.categoryId ? String(editProduct.categoryId) : '';
     }
     else {
-        modalTitle.textContent = 'Nuevo producto';
+        modalTitle.textContent = 'Nuevo Producto';
         productIdInput.value = '';
         form.reset();
         if (barcodeEl)
@@ -161,29 +161,39 @@ form.addEventListener('submit', async (e) => {
         ? { ...editingProduct, ...formData }
         : { ...formData, sku: formData.sku, name: formData.name };
     try {
+        let res;
         if (id) {
-            await fetch(`${API}/api/products/${id}`, {
+            res = await fetch(`${API}/api/products/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
         }
         else {
-            await fetch(`${API}/api/products`, {
+            res = await fetch(`${API}/api/products`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
         }
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            const msg = data.error || 'Error al guardar.';
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
+            else alert(msg);
+            return;
+        }
         closeModal();
         editingProduct = null;
         loadAndRender();
+        const successMsg = id ? 'Producto actualizado correctamente.' : 'Producto creado correctamente.';
+        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: successMsg, type: 'success' });
+        else alert(successMsg);
     }
     catch (err) {
-        if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al guardar.', type: 'error' });
-        else
-            alert('Error al guardar');
+        const msg = err && err.message ? err.message : 'Error de conexión al guardar.';
+        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
+        else alert(msg);
     }
 });
 document.getElementById('btn-cancel-product')?.addEventListener('click', closeModal);
@@ -196,20 +206,27 @@ document.getElementById('btn-export-csv')?.addEventListener('click', async (e) =
     e.preventDefault();
     try {
         const res = await fetch(`${API}/api/products/export`);
-        if (!res.ok)
-            throw new Error('Export failed');
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            const msg = data.error || 'Error al exportar.';
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
+            else alert(msg);
+            return;
+        }
         const blob = await res.blob();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'inventario.csv';
         a.click();
         URL.revokeObjectURL(a.href);
+        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Exportado correctamente. El archivo se ha descargado.', type: 'success' });
+        else alert('Exportado correctamente.');
     }
     catch (_) {
         if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error al exportar. Comprueba la conexión.', type: 'error' });
+            window.showAlert({ title: 'Error', message: 'Error de conexión al exportar.', type: 'error' });
         else
-            alert('Error al exportar. Comprueba la conexión.');
+            alert('Error de conexión al exportar.');
     }
 });
 document.getElementById('products-tbody')?.addEventListener('click', async (e) => {
@@ -223,18 +240,28 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
         const b = (btn || t);
         const isFav = b.getAttribute('data-fav') !== '1';
         try {
-            await fetch(`${API}/api/products/${id}/favorite`, {
+            const res = await fetch(`${API}/api/products/${id}/favorite`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ isFavorite: isFav }),
             });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                const msg = data.error || 'Error al actualizar favorito.';
+                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
+                else alert(msg);
+                return;
+            }
             loadAndRender();
+            const successMsg = isFav ? 'Producto añadido a favoritos.' : 'Producto quitado de favoritos.';
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: successMsg, type: 'success' });
+            else alert(successMsg);
         }
         catch (_) {
             if (typeof window.showAlert === 'function')
-                window.showAlert({ title: 'Error', message: 'Error al actualizar favorito.', type: 'error' });
+                window.showAlert({ title: 'Error', message: 'Error de conexión al actualizar favorito.', type: 'error' });
             else
-                alert('Error al actualizar favorito.');
+                alert('Error de conexión al actualizar favorito.');
         }
         return;
     }
@@ -250,15 +277,42 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
         return;
     }
     if (t.classList.contains('edit-product')) {
-        const res = await fetch(`${API}/api/products/${id}`);
-        const p = await res.json();
-        openModal(p);
+        try {
+            const res = await fetch(`${API}/api/products/${id}`);
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                const msg = data.error || 'Error al cargar el producto.';
+                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
+                else alert(msg);
+                return;
+            }
+            const p = await res.json();
+            openModal(p);
+        } catch (_) {
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión al cargar el producto.', type: 'error' });
+            else alert('Error de conexión al cargar el producto.');
+        }
+        return;
     }
     if (t.classList.contains('delete-product')) {
         if (!confirm('¿Eliminar este producto?'))
             return;
-        await fetch(`${API}/api/products/${id}`, { method: 'DELETE' });
-        loadAndRender();
+        try {
+            const res = await fetch(`${API}/api/products/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                const msg = data.error || 'Error al eliminar el producto.';
+                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
+                else alert(msg);
+                return;
+            }
+            loadAndRender();
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Producto eliminado correctamente.', type: 'success' });
+            else alert('Producto eliminado correctamente.');
+        } catch (_) {
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión al eliminar.', type: 'error' });
+            else alert('Error de conexión al eliminar.');
+        }
     }
 });
 document.getElementById('btn-adjust-cancel')?.addEventListener('click', () => {
@@ -287,7 +341,7 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
         });
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
-            const msg = data.error || 'Error al ajustar';
+            const msg = data.error || 'Error al ajustar el stock.';
             if (typeof window.showAlert === 'function')
                 window.showAlert({ title: 'Error', message: msg, type: 'error' });
             else
@@ -296,10 +350,12 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
         }
         document.getElementById('adjust-modal').style.display = 'none';
         loadAndRender();
+        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Stock ajustado correctamente.', type: 'success' });
+        else alert('Stock ajustado correctamente.');
     }
     catch (_) {
         if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
+            window.showAlert({ title: 'Error', message: 'Error de conexión al ajustar.', type: 'error' });
         else
             alert('Error de conexión.');
     }
@@ -347,9 +403,9 @@ document.getElementById('btn-print-catalog')?.addEventListener('click', () => {
     const list = currentProducts;
     if (list.length === 0) {
         if (typeof window.showAlert === 'function')
-            window.showAlert({ title: 'Aviso', message: 'No hay productos para imprimir.', type: 'warning' });
+            window.showAlert({ title: 'Aviso', message: 'No hay Productos para imprimir.', type: 'warning' });
         else
-            alert('No hay productos para imprimir.');
+            alert('No hay Productos para imprimir.');
         return;
     }
     const rows = list

@@ -65,7 +65,7 @@ async function loadDashboard() {
     if (lowStockMsg) {
       lowStockMsg.textContent = lowStock.length > 0
         ? `${lowStock.length} producto(s) con stock por debajo del mínimo.`
-        : 'No hay productos con bajo stock.';
+        : 'No hay Productos con Bajo Stock.';
     }
     if (lowStockTbody) {
       lowStockTbody.innerHTML = lowStock
@@ -81,7 +81,7 @@ async function loadDashboard() {
         )
         .join('');
     }
-    // Mostrar modal de bajo stock solo una vez al iniciar sesión y de nuevo solo si aumenta el número
+    // Mostrar modal de Bajo Stock solo una vez al iniciar sesión y de nuevo solo si aumenta el número
     const LOW_STOCK_KEY = 'kuma_low_stock_last_shown_count';
     if (lowStock.length > 0) {
       let lastShown: string | null = null;

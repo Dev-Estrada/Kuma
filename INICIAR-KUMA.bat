@@ -1,5 +1,5 @@
 @echo off
-title KUMA - Punto de venta
+title KUMA - Punto de Venta
 cd /d "%~dp0"
 
 REM Si no existe node_modules, instalar dependencias

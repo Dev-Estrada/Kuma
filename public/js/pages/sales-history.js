@@ -139,11 +139,15 @@ function applySaleFilter() {
         msg.textContent = '';
         return;
     }
-    const filtered = allSales.filter((s) => String(s.id).includes(q));
+    const qLower = q.toLowerCase();
+    const filtered = allSales.filter((s) =>
+        String(s.id).includes(q) ||
+        ((s.clientName || '').toLowerCase().includes(qLower))
+    );
     currentSalesPage = 1;
     renderSalesRows(filtered, 1);
     if (filtered.length === 0) {
-        msg.textContent = `Ninguna venta coincide con el ID "${q}".`;
+        msg.textContent = `Ninguna venta coincide con "${q}".`;
     }
     else {
         msg.textContent = `${filtered.length} venta(s) encontrada(s).`;
@@ -299,7 +303,11 @@ function getSalesToPrint() {
     const q = document.getElementById('sale-search')?.value.trim() || '';
     if (!q)
         return allSales;
-    return allSales.filter((s) => String(s.id).includes(q));
+    const qLower = q.toLowerCase();
+    return allSales.filter((s) =>
+        String(s.id).includes(q) ||
+        ((s.clientName || '').toLowerCase().includes(qLower))
+    );
 }
 document.getElementById('btn-print-sales')?.addEventListener('click', () => {
     const sales = getSalesToPrint();

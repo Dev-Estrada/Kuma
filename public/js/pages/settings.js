@@ -257,7 +257,7 @@ function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     const label = document.getElementById('theme-toggle-label');
     if (label)
-        label.textContent = theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
+        label.textContent = theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro';
 }
 function toggleTheme() {
     setTheme(getTheme() === 'dark' ? 'light' : 'dark');
@@ -296,9 +296,8 @@ if (btnBackup && backupMsg) {
             const res = await fetch(`${API}/api/backup`);
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                backupMsg.style.display = 'block';
-                backupMsg.textContent = data.error || 'No se pudo descargar la copia. Compruebe que tiene permisos de administrador.';
-                backupMsg.className = 'msg msg--error mt-1 mb-0';
+                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: data.error || 'No se pudo descargar la copia. Compruebe que tiene permisos de administrador.', type: 'error' });
+                else { backupMsg.style.display = 'block'; backupMsg.textContent = data.error || 'No se pudo descargar la copia.'; }
                 return;
             }
             const blob = await res.blob();
@@ -311,10 +310,10 @@ if (btnBackup && backupMsg) {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Copia de Seguridad descargada correctamente.', type: 'success', skipNotificationSeen: true });
         } catch (e) {
-            backupMsg.style.display = 'block';
-            backupMsg.textContent = 'Error de conexión al descargar.';
-            backupMsg.className = 'msg msg--error mt-1 mb-0';
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión al descargar.', type: 'error' });
+            else { backupMsg.style.display = 'block'; backupMsg.textContent = 'Error de conexión al descargar.'; }
         } finally {
             btnBackup.disabled = false;
         }
@@ -352,21 +351,22 @@ if (restoreFile && btnRestore && restoreMsg) {
                 body: JSON.stringify({ data: b64 }),
             });
             const data = await res.json().catch(() => ({}));
+            restoreMsg.style.display = 'none';
+            restoreMsg.textContent = '';
             if (res.ok && data.ok) {
-                restoreMsg.textContent = data.message || 'Restauración aplicada. Recargue la página.';
-                restoreMsg.className = 'msg msg--success mt-1 mb-0';
-                restoreFile.value = '';
-                btnRestore.setAttribute('disabled', 'true');
-                setTimeout(() => location.reload(), 1500);
-            }
-            else {
-                restoreMsg.textContent = data.error || 'Error al restaurar.';
-                restoreMsg.className = 'msg msg--error mt-1 mb-0';
+                const msg = data.message || 'Restauración aplicada. Al cerrar esta ventana se recargará la página para usar la nueva base de datos.';
+                if (typeof window.showAlert === 'function') {
+                    window.showAlert({ title: 'Restauración completada', message: msg, type: 'success', skipNotificationSeen: true, onClose: function () { restoreFile.value = ''; btnRestore.setAttribute('disabled', 'true'); location.reload(); } });
+                } else { restoreFile.value = ''; btnRestore.setAttribute('disabled', 'true'); setTimeout(() => location.reload(), 1500); }
+            } else {
+                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error al restaurar', message: data.error || 'No se pudo restaurar la copia.', type: 'error' });
+                else { restoreMsg.style.display = 'block'; restoreMsg.textContent = data.error || 'Error al restaurar.'; restoreMsg.className = 'msg msg--error mt-1 mb-0'; }
             }
         }
         catch (e) {
-            restoreMsg.textContent = 'Error de conexión.';
-            restoreMsg.className = 'msg msg--error mt-1 mb-0';
+            restoreMsg.style.display = 'none';
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión al restaurar.', type: 'error' });
+            else { restoreMsg.style.display = 'block'; restoreMsg.textContent = 'Error de conexión.'; restoreMsg.className = 'msg msg--error mt-1 mb-0'; }
         }
     });
 }
@@ -380,19 +380,22 @@ if (btnRestoreDemo && restoreDemoMsg) {
         try {
             const res = await fetch(`${API}/api/backup/restore-demo`, { method: 'POST' });
             const data = await res.json().catch(() => ({}));
+            restoreDemoMsg.style.display = 'none';
+            restoreDemoMsg.textContent = '';
             if (res.ok && data.ok) {
-                restoreDemoMsg.textContent = data.message || 'Base de datos demo aplicada. Recargando…';
-                restoreDemoMsg.className = 'msg msg--success mt-1 mb-0';
-                setTimeout(() => location.reload(), 1500);
-            }
-            else {
-                restoreDemoMsg.textContent = data.error || 'Error. Asegúrese de que demoBD.db exista (ejecute: node scripts/create-demo-db.js).';
-                restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
+                const msg = data.message || 'Base de datos de demostración aplicada. Al cerrar esta ventana se recargará la página.';
+                if (typeof window.showAlert === 'function') {
+                    window.showAlert({ title: 'Base de datos de demostración', message: msg, type: 'success', skipNotificationSeen: true, onClose: function () { location.reload(); } });
+                } else setTimeout(() => location.reload(), 1500);
+            } else {
+                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: data.error || 'No se encontró demoBD.db. Ejecute: node scripts/create-demo-db.js', type: 'error' });
+                else { restoreDemoMsg.style.display = 'block'; restoreDemoMsg.textContent = data.error || 'Error.'; restoreDemoMsg.className = 'msg msg--error mt-1 mb-0'; }
             }
         }
         catch (e) {
-            restoreDemoMsg.textContent = 'Error de conexión.';
-            restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
+            restoreDemoMsg.style.display = 'none';
+            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
+            else { restoreDemoMsg.style.display = 'block'; restoreDemoMsg.textContent = 'Error de conexión.'; restoreDemoMsg.className = 'msg msg--error mt-1 mb-0'; }
         }
     });
 }

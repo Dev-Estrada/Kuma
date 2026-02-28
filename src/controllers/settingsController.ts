@@ -44,7 +44,7 @@ export class SettingsController {
     const rate = Number(req.body?.rate ?? req.body?.exchangeRate);
     const notes = typeof req.body?.notes === 'string' ? req.body.notes : undefined;
     if (isNaN(rate)) {
-      return res.status(400).json({ error: 'Tasa de cambio inválida' });
+      return res.status(400).json({ error: 'Tasa de Cambio inválida' });
     }
     try {
       await service.setExchangeRate(rate, notes);

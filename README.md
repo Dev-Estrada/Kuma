@@ -1,13 +1,13 @@
 # POS + Inventario
 
-Sistema ligero de **punto de venta (POS)** con **inventario**, pensado para uso en Venezuela: precios en **dólares (USD)** y totales en **bolívares (Bs)** con tasa de cambio actualizable.
+Sistema ligero de **Punto de Venta (POS)** con **inventario**, pensado para uso en Venezuela: precios en **dólares (USD)** y totales en **bolívares (Bs)** con tasa de cambio actualizable.
 
 ## Características
 
-- **Punto de venta**: selección de productos, carrito, descuento por venta, totales en USD y Bs, descargo automático del inventario.
-- **Inventario**: alta, edición, baja y consulta de productos; precios en USD; stock mínimo; categorías.
+- **Punto de Venta**: selección de Productos, factura, descuento por venta, totales en USD y Bs, descargo automático del inventario.
+- **Inventario**: alta, edición, baja y consulta de Productos; precios en USD; stock mínimo; categorías.
 - **Configuración**: tasa de cambio USD → Bs actualizable en cualquier momento.
-- **Dashboard**: resumen de productos, bajo stock, tasa actual y últimas ventas.
+- **Dashboard**: resumen de Productos, Bajo Stock, tasa actual y últimas ventas.
 
 ## Estructura
 
@@ -16,7 +16,7 @@ Sistema ligero de **punto de venta (POS)** con **inventario**, pensado para uso 
   - `models/`, `repositories/`, `services/`, `controllers/`, `routes/`
 - `public/`: frontend estático (HTML, SCSS, TypeScript)
   - `index.html`: inicio/dashboard
-  - `sales.html`: punto de venta
+  - `sales.html`: Punto de Venta
   - `inventory.html`: inventario
   - `settings.html`: tasa de cambio
 
@@ -43,7 +43,7 @@ npm install
 1. Arrancar el servidor: `npm run dev` (o `npm run build` y luego `npm run start`).
 2. Abrir en el navegador: `http://localhost:3000`.
 3. En **Configuración** establecer la tasa USD → Bs.
-4. En **Inventario** cargar productos (precios en USD).
-5. En **Punto de venta** realizar ventas; el inventario se descuenta automáticamente.
+4. En **Inventario** cargar Productos (precios en USD).
+5. En **Punto de Venta** realizar ventas; el inventario se descuenta automáticamente.
 
 La base de datos `inventory.db` se crea al arrancar. Si ya existía con un esquema antiguo, puedes borrarla para que se genere la estructura nueva (settings, sales, sale_items).

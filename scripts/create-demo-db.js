@@ -1,5 +1,5 @@
 /**
- * Genera la base de datos de demostración demoBD.db con categorías, productos,
+ * Genera la base de datos de demostración demoBD.db con categorías, Productos,
  * clientes, ventas, movimientos, usuarios, tasa de cambio, vistas e índices.
  * Ejecutar desde la raíz: node scripts/create-demo-db.js
  */
@@ -174,7 +174,7 @@ async function main() {
     ['Cuidado del bebé', 'Pañales, fórmulas, biberones'],
     ['Farmacia básica', 'Medicamentos de venta libre'],
     ['Hogar', 'Artículos para el hogar'],
-    ['Otros', 'Otros productos'],
+    ['Otros', 'Otros Productos'],
   ];
 
   for (const [name, desc] of categories) {
@@ -389,7 +389,7 @@ async function main() {
 
   const counts = await get(db, 'SELECT (SELECT COUNT(*) FROM products) as products, (SELECT COUNT(*) FROM movements) as movements, (SELECT COUNT(*) FROM sales) as sales');
   console.log('demoBD.db creada correctamente.');
-  console.log('Resumen: productos:', counts.products, '| movimientos:', counts.movements, '| ventas:', counts.sales);
+  console.log('Resumen: Productos:', counts.products, '| movimientos:', counts.movements, '| ventas:', counts.sales);
   db.close();
   process.exit(0);
 }

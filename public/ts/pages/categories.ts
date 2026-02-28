@@ -131,7 +131,7 @@ document.getElementById('categories-tbody')?.addEventListener('click', async (e)
   if (deleteBtn) {
     const id = Number(deleteBtn.getAttribute('data-id'));
     const name = deleteBtn.getAttribute('data-name') || 'esta categoría';
-    if (!confirm(`¿Eliminar la categoría "${name}"? Los productos que la usen quedarán sin categoría.`)) return;
+    if (!confirm(`¿Eliminar la categoría "${name}"? Los Productos que la usen quedarán sin categoría.`)) return;
     try {
       const res = await fetch(`${API}/api/categories/${id}`, { method: 'DELETE' });
       if (!res.ok) {

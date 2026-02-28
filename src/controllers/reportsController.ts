@@ -33,7 +33,7 @@ export class ReportsController {
       const data = await service.getTopProducts(limit);
       res.json(data);
     } catch (err) {
-      res.status(500).json({ error: 'Error al obtener productos más vendidos' });
+      res.status(500).json({ error: 'Error al obtener Productos más vendidos' });
     }
   }
 

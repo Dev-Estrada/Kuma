@@ -38,7 +38,7 @@ export class MovementService {
     await this.repo.create(movement);
   }
 
-  /** Entrada de mercancía: aumenta stock y registra movimiento tipo entrada */
+  /** Entrada de Mercancía: aumenta stock y registra movimiento tipo entrada */
   async recordEntry(productId: number, quantity: number, reference?: string, reason?: string): Promise<number> {
     if (quantity <= 0) throw new Error('La cantidad debe ser mayor a cero');
     const product = await this.productRepo.getById(productId);
@@ -53,8 +53,8 @@ export class MovementService {
       previousQuantity,
       newQuantity,
       referenceNumber: reference || undefined,
-      reason: reason || 'Entrada de mercancía',
-      notes: reason || 'Entrada de mercancía',
+      reason: reason || 'Entrada de Mercancía',
+      notes: reason || 'Entrada de Mercancía',
     };
     return this.repo.create(movement);
   }

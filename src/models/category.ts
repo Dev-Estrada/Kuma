@@ -1,4 +1,4 @@
-// Category representa una categoría de productos
+// Category representa una categoría de Productos
 export interface Category {
   id?: number;
   name: string;

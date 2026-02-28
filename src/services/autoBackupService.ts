@@ -1,5 +1,5 @@
 /**
- * Copia de seguridad automática diaria a las 23:59 (hora Venezuela).
+ * Copia de Seguridad automática diaria a las 23:59 (hora Venezuela).
  * Mantiene como máximo 7 copias; elimina las más antiguas.
  */
 import fs from 'fs';

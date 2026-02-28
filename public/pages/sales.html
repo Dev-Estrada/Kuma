@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KUMA - Punto de venta</title>
+  <title>KUMA - Punto de Venta</title>
   <link rel="icon" href="/assets/logo.png" type="image/png" />
   <link rel="stylesheet" href="/css/styles.css" />
   <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');</script>
@@ -35,7 +35,7 @@
       </div>
       <nav class="topbar__nav">
         <a class="topbar__link" href="/index.html">Inicio</a>
-        <a class="topbar__link active" href="/pages/sales.html">Punto de venta</a>
+        <a class="topbar__link active" href="/pages/sales.html">Punto de Venta</a>
         <a class="topbar__link" href="/pages/inventory.html">Inventario</a>
         <a class="topbar__link" href="/pages/sales-history.html">Ventas</a>
         <a class="topbar__link" href="/pages/reports.html">Reportes</a>
@@ -44,7 +44,7 @@
       </nav>
     </header>
     <main class="main">
-      <h1 class="page-title">Punto de venta</h1>
+      <h1 class="page-title">Punto de Venta</h1>
       <div class="pos-layout">
         <section class="pos-products">
           <div class="pos-products__search">
@@ -66,11 +66,11 @@
           <div class="pos-products__pagination" id="product-grid-pagination"></div>
         </section>
         <aside class="cart">
-          <div class="cart__header">Carrito</div>
+          <div class="cart__header">Factura</div>
           <div class="exchange-badge mt-1" id="cart-rate">1 USD = — Bs</div>
           <div class="cart__body">
             <div class="cart__items" id="cart-items">
-              <div class="cart__empty">Añade productos desde la lista</div>
+              <div class="cart__empty">Añade Productos desde la lista</div>
             </div>
             <div class="cart__totals" id="cart-totals" style="display:none;">
               <div class="form-group">
@@ -83,7 +83,7 @@
               <div class="cart__row cart__row--bs"><span>Total Bs</span><span id="total-bs">0.00</span></div>
               <div class="cart__actions">
                 <button type="button" class="btn btn--success" id="btn-complete">Completar venta</button>
-                <button type="button" class="btn btn--ghost mt-1" id="btn-clear">Vaciar carrito</button>
+                <button type="button" class="btn btn--ghost mt-1" id="btn-clear">Vaciar Factura</button>
               </div>
             </div>
           </div>
@@ -155,7 +155,7 @@
   </div>
   <div id="pos-new-client-modal" class="overlay" style="display: none; align-items: center; justify-content: center;">
     <div class="modal" style="max-width: 28rem;">
-      <h2 class="modal__title">Nuevo cliente</h2>
+      <h2 class="modal__title">Nuevo Cliente</h2>
       <form id="pos-new-client-form">
         <div class="form-group">
           <label for="pos-new-client-name">Nombre *</label>

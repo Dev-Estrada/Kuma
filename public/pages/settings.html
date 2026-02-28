@@ -35,7 +35,7 @@
       </div>
       <nav class="topbar__nav">
         <a class="topbar__link" href="/index.html">Inicio</a>
-        <a class="topbar__link" href="/pages/sales.html">Punto de venta</a>
+        <a class="topbar__link" href="/pages/sales.html">Punto de Venta</a>
         <a class="topbar__link" href="/pages/inventory.html">Inventario</a>
         <a class="topbar__link" href="/pages/sales-history.html">Ventas</a>
         <a class="topbar__link" href="/pages/reports.html">Reportes</a>
@@ -47,8 +47,8 @@
       <h1 class="page-title">Configuración</h1>
       <div class="controls-bar" style="margin-bottom: 1rem;">
         <button type="button" class="btn btn--ghost" id="btn-settings-appearance">Apariencia</button>
-        <button type="button" class="btn btn--ghost" id="btn-settings-rate">Tasa de cambio</button>
-        <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-backup">Copia de seguridad</button>
+        <button type="button" class="btn btn--ghost" id="btn-settings-rate">Tasa de Cambio</button>
+        <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-backup">Copia de Seguridad</button>
         <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-restore">Restaurar desde copia</button>
         <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-demo">Base de datos demo</button>
         <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-delete-db">Eliminar BD actual</button>
@@ -82,7 +82,7 @@
       <h2 class="modal__title">Apariencia</h2>
       <p class="text-muted" style="margin: 0 0 1rem;">Cambia entre tema claro y oscuro.</p>
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema">
-        <span id="theme-toggle-label">Modo oscuro</span>
+        <span id="theme-toggle-label">Modo Oscuro</span>
       </button>
 
       <div class="branding-settings" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border);">
@@ -104,11 +104,11 @@
     </div>
   </div>
 
-  <!-- Modal: Tasa de cambio -->
+  <!-- Modal: Tasa de Cambio -->
   <div id="settings-modal-rate" class="overlay" style="display: none; align-items: center; justify-content: center;">
     <div class="modal" style="max-width: 28rem;">
-      <h2 class="modal__title">Tasa de cambio (USD → Bs)</h2>
-      <p class="text-muted" style="margin: 0 0 1rem;">Los precios se guardan en dólares. Esta tasa se usa para mostrar totales en bolívares en el punto de venta. Cada cambio queda registrado en el historial para auditoría.</p>
+      <h2 class="modal__title">Tasa de Cambio (USD → Bs)</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;">Los precios se guardan en dólares. Esta tasa se usa para mostrar totales en bolívares en el Punto de Venta. Cada cambio queda registrado en el historial para auditoría.</p>
       <div class="form-group">
         <label for="exchange-rate">Tasa actual (Bs por 1 USD)</label>
         <input type="number" id="exchange-rate" min="0.01" step="0.01" placeholder="36.50" />
@@ -127,10 +127,10 @@
     </div>
   </div>
 
-  <!-- Modal: Copia de seguridad -->
+  <!-- Modal: Copia de Seguridad -->
   <div id="settings-modal-backup" class="overlay" style="display: none; align-items: center; justify-content: center;">
     <div class="modal" style="max-width: 28rem;">
-      <h2 class="modal__title">Copia de seguridad</h2>
+      <h2 class="modal__title">Copia de Seguridad</h2>
       <p class="text-muted" style="margin: 0 0 1rem;">Descarga una copia del archivo de base de datos (inventory.db) para respaldo.</p>
       <button type="button" class="btn btn--ghost" id="btn-backup">Descargar copia de seguridad</button>
       <p id="backup-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
@@ -161,7 +161,7 @@
   <div id="settings-modal-demo" class="overlay" style="display: none; align-items: center; justify-content: center;">
     <div class="modal" style="max-width: 28rem;">
       <h2 class="modal__title">Base de datos de demostración</h2>
-      <p class="text-muted" style="margin: 0 0 1rem;">Carga la base de datos <strong>demoBD.db</strong> con productos, ventas y clientes de ejemplo. Se aplica al instante y la página se recargará.</p>
+      <p class="text-muted" style="margin: 0 0 1rem;">Carga la base de datos <strong>demoBD.db</strong> con Productos, ventas y clientes de ejemplo. Se aplica al instante y la página se recargará.</p>
       <button type="button" class="btn btn--ghost" id="btn-restore-demo">Cargar base de datos de demostración</button>
       <p id="restore-demo-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
       <div class="modal__actions" style="margin-top: 1rem;">
@@ -186,7 +186,7 @@
   <!-- Modal: Copia automática -->
   <div id="settings-modal-auto-backup" class="overlay" style="display: none; align-items: center; justify-content: center;">
     <div class="modal" style="max-width: 28rem;">
-      <h2 class="modal__title">Copia de seguridad automática</h2>
+      <h2 class="modal__title">Copia de Seguridad automática</h2>
       <p class="text-muted" style="margin: 0 0 1rem;">Todos los días a las <strong>23:59</strong> (hora Venezuela) se guarda una copia en la carpeta <strong>backups/</strong>. Se mantienen como máximo <strong>7 copias</strong>; las más antiguas se eliminan.</p>
       <div class="modal__actions" style="margin-top: 1rem;">
         <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-auto-backup">Cerrar</button>
