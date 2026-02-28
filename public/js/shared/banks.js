@@ -36,4 +36,5 @@ export const PAYMENT_METHOD_LABELS = {
     tarjeta_debito: 'Tarjeta de Débito',
     efectivo_usd: 'Efectivo USD',
     efectivo_bs: 'Efectivo Bs',
+    biopago: 'BioPago',
 };

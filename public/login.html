@@ -110,7 +110,28 @@
   </div>
   <div id="alert-modal-root"></div>
   <script src="/js/shared/alerts-notifications.js"></script>
+  <script src="/js/shared/branding.js"></script>
   <script src="/js/auth/login.js"></script>
+  <script>
+    (function showRedirectMessage() {
+      try {
+        var msg = sessionStorage.getItem('kuma_redirect_message');
+        if (msg) {
+          sessionStorage.removeItem('kuma_redirect_message');
+          if (typeof window.showAlert === 'function') {
+            window.showAlert({
+              title: 'Base de datos eliminada',
+              message: msg,
+              type: 'success',
+              skipNotificationSeen: true
+            });
+          } else {
+            alert(msg);
+          }
+        }
+      } catch (_) {}
+    })();
+  </script>
   <script>
     (function matrixRain() {
       var canvas = document.getElementById('matrix-canvas');

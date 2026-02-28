@@ -1,28 +1,39 @@
 import { ProductRepository } from '../repositories/productRepository';
 import { SettingsRepository } from '../repositories/settingsRepository';
 import { SalesRepository } from '../repositories/salesRepository';
-import { SaleCreateRequest } from '../models/sale';
+import { SaleCreateRequest, SalePaymentInput } from '../models/sale';
 
-const VALID_PAYMENT_METHODS = ['pago_movil', 'tarjeta_debito', 'efectivo_usd', 'efectivo_bs'] as const;
+const VALID_PAYMENT_METHODS = ['pago_movil', 'tarjeta_debito', 'efectivo_usd', 'efectivo_bs', 'biopago'] as const;
+const METHODS_REQUIRING_BANK_REF = ['pago_movil', 'tarjeta_debito', 'biopago'];
 
 export class SaleService {
   private productRepo = new ProductRepository();
   private settingsRepo = new SettingsRepository();
   private salesRepo = new SalesRepository();
 
+  private validatePayment(p: SalePaymentInput, index: number): void {
+    if (!p.method || !VALID_PAYMENT_METHODS.includes(p.method)) {
+      throw new Error(`Método de pago no válido en el pago #${index + 1}`);
+    }
+    if (typeof p.amountUsd !== 'number' || p.amountUsd <= 0) {
+      throw new Error(`El monto del pago #${index + 1} debe ser mayor a 0`);
+    }
+    if (METHODS_REQUIRING_BANK_REF.includes(p.method)) {
+      if (!(p.reference?.trim())) {
+        throw new Error(`El pago #${index + 1} (${p.method}) requiere referencia de transacción`);
+      }
+    }
+  }
+
   async createSale(req: SaleCreateRequest): Promise<{ id: number; totalUsd: number; totalBs: number }> {
     if (!req.items || req.items.length === 0) {
       throw new Error('Debe incluir al menos un producto en la venta');
     }
-    if (!req.paymentMethod || !VALID_PAYMENT_METHODS.includes(req.paymentMethod)) {
-      throw new Error('Método de pago no válido');
+    if (!req.payments || req.payments.length === 0) {
+      throw new Error('Debe incluir al menos un método de pago');
     }
-    if ((req.paymentMethod === 'pago_movil' || req.paymentMethod === 'tarjeta_debito') && !(req.paymentReference?.trim())) {
-      throw new Error('Debe indicar la referencia de la transacción');
-    }
-    if ((req.paymentMethod === 'efectivo_usd' || req.paymentMethod === 'efectivo_bs') && (req.paymentCashReceived == null || req.paymentCashReceived < 0)) {
-      throw new Error('Debe indicar el efectivo recibido');
-    }
+    req.payments.forEach((p, i) => this.validatePayment(p, i));
+
     const discountPercent = Math.max(0, Math.min(100, req.discountPercent ?? 0));
     const productIds = [...new Set(req.items.map((i) => i.productId))];
     const products = await this.productRepo.getByIds(productIds);
@@ -60,6 +71,14 @@ export class SaleService {
     const exchangeRate = await this.settingsRepo.getExchangeRate();
     const totalBs = Math.round(totalUsd * exchangeRate * 100) / 100;
 
+    const sumPayments = req.payments.reduce((s, p) => s + p.amountUsd, 0);
+    const sumRounded = Math.round(sumPayments * 100) / 100;
+    if (sumRounded < totalUsd) {
+      throw new Error(
+        `La suma de los pagos ($${sumRounded.toFixed(2)} USD) es menor al total de la venta ($${totalUsd.toFixed(2)} USD). No se puede completar la factura.`
+      );
+    }
+
     const saleId = await this.salesRepo.createSale(
       {
         totalUsd,
@@ -68,13 +87,14 @@ export class SaleService {
         discountPercent,
         notes: req.notes,
         clientId: req.clientId ?? null,
-        paymentMethod: req.paymentMethod,
-        paymentBankCode: req.paymentBankCode ?? null,
-        paymentReference: req.paymentReference ?? null,
-        paymentCashReceived: req.paymentCashReceived ?? null,
-        paymentChangeUsd: req.paymentChangeUsd ?? null,
-        paymentChangeBs: req.paymentChangeBs ?? null,
       },
+      req.payments.map((p) => ({
+        method: p.method,
+        amountUsd: Math.round(p.amountUsd * 100) / 100,
+        bankCode: p.bankCode ?? null,
+        reference: p.reference ?? null,
+        mon: p.mon ?? null,
+      })),
       lineItems,
       productUpdates,
       movements

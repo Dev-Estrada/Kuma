@@ -1,5 +1,5 @@
 import { getDb, runTransaction } from '../database';
-import { Sale, SaleItem } from '../models/sale';
+import { Sale, SaleItem, SalePayment } from '../models/sale';
 import { getVenezuelaNow } from '../utils/venezuelaTime';
 
 interface ProductUpdate { id: number; newQuantity: number; previousQuantity: number }
@@ -9,9 +9,8 @@ export class SalesRepository {
   async createSale(
     sale: {
       totalUsd: number; totalBs: number; exchangeRate: number; discountPercent?: number; notes?: string; clientId?: number | null;
-      paymentMethod?: string | null; paymentBankCode?: string | null; paymentReference?: string | null;
-      paymentCashReceived?: number | null; paymentChangeUsd?: number | null; paymentChangeBs?: number | null;
     },
+    payments: { method: string; amountUsd: number; bankCode?: string | null; reference?: string | null; mon?: string | null }[],
     items: { productId: number; quantity: number; unitPriceUsd: number; subtotalUsd: number }[],
     productUpdates: ProductUpdate[],
     movements: MovementRow[]
@@ -19,23 +18,29 @@ export class SalesRepository {
     return runTransaction(async (db) => {
       const createdAt = getVenezuelaNow();
       const saleResult = await db.run(
-        `INSERT INTO sales (totalUsd, totalBs, exchangeRate, discountPercent, notes, status, clientId, paymentMethod, paymentBankCode, paymentReference, paymentCashReceived, paymentChangeUsd, paymentChangeBs, createdAt)
-         VALUES (?, ?, ?, ?, ?, 'completada', ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sales (totalUsd, totalBs, exchangeRate, discountPercent, notes, status, clientId, createdAt)
+         VALUES (?, ?, ?, ?, ?, 'completada', ?, ?)`,
         sale.totalUsd,
         sale.totalBs,
         sale.exchangeRate,
         sale.discountPercent ?? 0,
         sale.notes ?? null,
         sale.clientId ?? null,
-        sale.paymentMethod ?? null,
-        sale.paymentBankCode ?? null,
-        sale.paymentReference ?? null,
-        sale.paymentCashReceived ?? null,
-        sale.paymentChangeUsd ?? null,
-        sale.paymentChangeBs ?? null,
         createdAt
       );
       const saleId = saleResult.lastID!;
+      for (const p of payments) {
+        await db.run(
+          `INSERT INTO sale_payments (saleId, method, amountUsd, bankCode, reference, mon)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          saleId,
+          p.method,
+          p.amountUsd,
+          p.bankCode ?? null,
+          p.reference ?? null,
+          p.mon ?? null
+        );
+      }
       for (const it of items) {
         await db.run(
           `INSERT INTO sale_items (saleId, productId, quantity, unitPriceUsd, subtotalUsd)
@@ -98,7 +103,7 @@ export class SalesRepository {
     );
   }
 
-  async getById(id: number): Promise<(Sale & { items: (SaleItem & { productName?: string; productSku?: string })[]; clientName?: string }) | null> {
+  async getById(id: number): Promise<(Sale & { items: (SaleItem & { productName?: string; productSku?: string })[]; payments?: SalePayment[]; clientName?: string }) | null> {
     const db = await getDb();
     const sale = await db.get<Sale & { clientName?: string }>(
       `SELECT s.*, c.name AS clientName FROM sales s LEFT JOIN clients c ON c.id = s.clientId WHERE s.id = ?`,
@@ -113,7 +118,32 @@ export class SalesRepository {
        ORDER BY si.id`,
       id
     );
-    return { ...sale, items };
+    const paymentRows = await db.all<(SalePayment & { method: string })[]>(
+      'SELECT id, saleId, method, amountUsd, bankCode, reference, mon FROM sale_payments WHERE saleId = ? ORDER BY id',
+      id
+    );
+    let payments: SalePayment[] | undefined;
+    if (paymentRows.length > 0) {
+      payments = paymentRows.map((r) => ({
+        id: r.id,
+        saleId: r.saleId,
+        method: r.method as SalePayment['method'],
+        amountUsd: r.amountUsd,
+        bankCode: r.bankCode ?? undefined,
+        reference: r.reference ?? undefined,
+        mon: r.mon ?? undefined,
+      }));
+    } else if (sale.paymentMethod) {
+      const amountUsd = sale.totalUsd ?? 0;
+      payments = [{
+        method: sale.paymentMethod as SalePayment['method'],
+        amountUsd,
+        bankCode: sale.paymentBankCode ?? undefined,
+        reference: sale.paymentReference ?? undefined,
+        mon: undefined,
+      }];
+    }
+    return { ...sale, items, payments };
   }
 
   async voidSale(id: number, reason?: string): Promise<void> {

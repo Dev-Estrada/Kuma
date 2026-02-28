@@ -26,7 +26,64 @@ function closeSettingsModal(modalId: string) {
   if (modal) modal.style.display = 'none';
 }
 
-document.getElementById('btn-settings-appearance')?.addEventListener('click', () => openSettingsModal('settings-modal-appearance'));
+function updateBrandingPreview() {
+  const preview = document.getElementById('branding-preview') as HTMLImageElement;
+  if (!preview) return;
+  const url = (window as any).getCustomLogo ? (window as any).getCustomLogo() : null;
+  preview.src = url || '/assets/logo.png';
+}
+async function loadBrandingFromServer() {
+  try {
+    const r = await getJson('/api/settings/branding-logo');
+    if (r && r.url && typeof (window as any).setCustomLogoUrl === 'function') {
+      (window as any).setCustomLogoUrl(r.url);
+      if (typeof (window as any).applyCustomBranding === 'function') (window as any).applyCustomBranding();
+    }
+  } catch (_) {}
+}
+document.getElementById('btn-settings-appearance')?.addEventListener('click', () => openSettingsModal('settings-modal-appearance', () => {
+  loadBrandingFromServer().then(() => updateBrandingPreview());
+}));
+document.getElementById('btn-branding-select')?.addEventListener('click', () => document.getElementById('branding-logo-input')?.click());
+document.getElementById('btn-branding-remove')?.addEventListener('click', async () => {
+  try {
+    await fetch(`${API}/api/settings/branding-logo`, { method: 'DELETE', credentials: 'same-origin' });
+  } catch (_) {}
+  if (typeof (window as any).setCustomLogoUrl === 'function') (window as any).setCustomLogoUrl(null);
+  updateBrandingPreview();
+  if (typeof (window as any).applyCustomBranding === 'function') (window as any).applyCustomBranding();
+  if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Listo', message: 'Logo de fondo quitado.', type: 'success' });
+});
+document.getElementById('branding-logo-input')?.addEventListener('change', async function (e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input?.files?.[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('logo', file);
+  try {
+    const res = await fetch(`${API}/api/settings/branding-logo`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: err.error || 'No se pudo subir el logo.', type: 'error' });
+      return;
+    }
+    const data = await res.json();
+    if (data && data.url && typeof (window as any).setCustomLogoUrl === 'function') {
+      (window as any).setCustomLogoUrl(data.url);
+      updateBrandingPreview();
+      if (typeof (window as any).applyCustomBranding === 'function') (window as any).applyCustomBranding();
+      if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Listo', message: 'Logo de fondo guardado. Se aplicará en todas las pantallas.', type: 'success' });
+    }
+  } catch (err) {
+    if (typeof (window as any).showAlert === 'function') (window as any).showAlert({ title: 'Error', message: 'No se pudo subir el logo.', type: 'error' });
+  }
+  input.value = '';
+});
+
 document.getElementById('btn-settings-rate')?.addEventListener('click', () => openSettingsModal('settings-modal-rate', () => loadRate()));
 document.getElementById('btn-settings-backup')?.addEventListener('click', () => openSettingsModal('settings-modal-backup'));
 document.getElementById('btn-settings-restore')?.addEventListener('click', () => openSettingsModal('settings-modal-restore'));
@@ -240,8 +297,41 @@ async function showRateReminder() {
 const rateBanner = document.getElementById('rate-reminder-banner');
 if (rateBanner) showRateReminder();
 
-const backupLink = document.getElementById('btn-backup') as HTMLAnchorElement;
-if (backupLink) backupLink.href = `${API}/api/backup`;
+const btnBackup = document.getElementById('btn-backup') as HTMLButtonElement;
+const backupMsg = document.getElementById('backup-msg');
+if (btnBackup && backupMsg) {
+  btnBackup.addEventListener('click', async () => {
+    (backupMsg as HTMLElement).style.display = 'none';
+    backupMsg.textContent = '';
+    btnBackup.disabled = true;
+    try {
+      const res = await fetch(`${API}/api/backup`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        (backupMsg as HTMLElement).style.display = 'block';
+        backupMsg.textContent = data.error || 'No se pudo descargar la copia. Compruebe que tiene permisos de administrador.';
+        backupMsg.className = 'msg msg--error mt-1 mb-0';
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'inventory.db';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      (backupMsg as HTMLElement).style.display = 'block';
+      backupMsg.textContent = 'Error de conexión al descargar.';
+      backupMsg.className = 'msg msg--error mt-1 mb-0';
+    } finally {
+      btnBackup.disabled = false;
+    }
+  });
+}
 
 const restoreFile = document.getElementById('restore-file') as HTMLInputElement;
 const btnRestore = document.getElementById('btn-restore');
@@ -274,10 +364,11 @@ if (restoreFile && btnRestore && restoreMsg) {
       });
       const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string; message?: string };
       if (res.ok && data.ok) {
-        restoreMsg.textContent = data.message || 'Listo. Reinicie el servidor para completar la restauración.';
+        restoreMsg.textContent = data.message || 'Restauración aplicada. Recargue la página.';
         restoreMsg.className = 'msg msg--success mt-1 mb-0';
         restoreFile.value = '';
         btnRestore.setAttribute('disabled', 'true');
+        setTimeout(() => location.reload(), 1500);
       } else {
         restoreMsg.textContent = data.error || 'Error al restaurar.';
         restoreMsg.className = 'msg msg--error mt-1 mb-0';
@@ -300,8 +391,9 @@ if (btnRestoreDemo && restoreDemoMsg) {
       const res = await fetch(`${API}/api/backup/restore-demo`, { method: 'POST' });
       const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string; message?: string };
       if (res.ok && data.ok) {
-        restoreDemoMsg.textContent = data.message || 'Reinicie el servidor para cargar la base de demostración.';
+        restoreDemoMsg.textContent = data.message || 'Base de datos demo aplicada. Recargando…';
         restoreDemoMsg.className = 'msg msg--success mt-1 mb-0';
+        setTimeout(() => location.reload(), 1500);
       } else {
         restoreDemoMsg.textContent = data.error || 'Error. Asegúrese de que demoBD.db exista (ejecute: node scripts/create-demo-db.js).';
         restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
@@ -325,9 +417,9 @@ if (btnDeleteDb && deleteDbMsg) {
       const res = await fetch(`${API}/api/backup/delete-database`, { method: 'POST' });
       const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string; message?: string };
       if (res.ok && data.ok) {
-        deleteDbMsg.textContent = data.message || 'Base de datos eliminada. Recargando…';
-        deleteDbMsg.className = 'msg msg--success mt-1 mb-0';
-        setTimeout(() => window.location.replace('/login.html'), 2000);
+        const msg = data.message || 'Base de datos eliminada. Recargue la página; se creará una base de datos nueva. Si desea restaurar datos, use "Restaurar desde copia".';
+        try { sessionStorage.setItem('kuma_redirect_message', msg); } catch (_) {}
+        window.location.replace('/login.html');
       } else {
         deleteDbMsg.textContent = data.error || 'Error al eliminar.';
         deleteDbMsg.className = 'msg msg--error mt-1 mb-0';

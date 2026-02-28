@@ -59,13 +59,31 @@
       } else {
         listEl.innerHTML = notificationsData.items
           .map(
-            (item) => `
+            (item) => {
+              let detailHtml = '';
+              if (item.detail && Array.isArray(item.detail) && item.detail.length > 0) {
+                detailHtml = '<ul class="notifications-dropdown__detail">' + item.detail
+                  .map(function (d) {
+                    const name = (d.name || '—').replace(/</g, '&lt;');
+                    const sku = (d.sku || '—').replace(/</g, '&lt;');
+                    const q = d.quantity != null ? d.quantity : '—';
+                    const min = d.minimumStock != null ? d.minimumStock : '—';
+                    return '<li><strong>' + name + '</strong> (SKU: ' + sku + ') — Stock: ' + q + ' / Mín: ' + min + '</li>';
+                  })
+                  .join('') + '</ul>';
+              } else if (item.detail && typeof item.detail === 'string') {
+                detailHtml = '<p class="notifications-dropdown__detail-text">' + (item.detail || '').replace(/</g, '&lt;') + '</p>';
+              }
+              const linkHref = (item.link && item.link.indexOf('/') === 0) ? item.link : (item.link ? '/pages/' + item.link : '');
+              return `
           <div class="notifications-dropdown__item notifications-dropdown__item--${item.type || 'info'}">
             <strong class="notifications-dropdown__title">${(item.title || '').replace(/</g, '&lt;')}</strong>
             <p class="notifications-dropdown__message">${(item.message || '').replace(/</g, '&lt;')}</p>
-            ${item.link ? `<a href="${item.link}" class="notifications-dropdown__link">${(item.linkText || 'Ver').replace(/</g, '&lt;')}</a>` : ''}
+            ${detailHtml}
+            ${linkHref ? '<a href="' + linkHref + '" class="notifications-dropdown__link">' + (item.linkText || 'Ver').replace(/</g, '&lt;') + '</a>' : ''}
           </div>
-        `
+        `;
+            }
           )
           .join('');
       }

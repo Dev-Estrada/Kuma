@@ -1,7 +1,34 @@
 import { Request, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
 import { SettingsService } from '../services/settingsService';
 
 const service = new SettingsService();
+
+const BRANDING_DIR = path.join(__dirname, '../../public/assets/branding');
+const BRANDING_BASENAME = 'custom-logo';
+
+function ensureBrandingDir() {
+  if (!fs.existsSync(BRANDING_DIR)) {
+    fs.mkdirSync(BRANDING_DIR, { recursive: true });
+  }
+}
+
+function getCurrentBrandingFile(): string | null {
+  if (!fs.existsSync(BRANDING_DIR)) return null;
+  const files = fs.readdirSync(BRANDING_DIR);
+  const found = files.find((f) => f.startsWith(BRANDING_BASENAME));
+  return found ? path.join(BRANDING_DIR, found) : null;
+}
+
+function deleteBrandingFile() {
+  const current = getCurrentBrandingFile();
+  if (current) {
+    try {
+      fs.unlinkSync(current);
+    } catch (_) {}
+  }
+}
 
 export class SettingsController {
   async getExchangeRate(req: Request, res: Response) {
@@ -43,6 +70,50 @@ export class SettingsController {
       res.json({ lastUpdate });
     } catch (err) {
       res.status(500).json({ error: 'Error al obtener última actualización de tasa' });
+    }
+  }
+
+  /** Logo de fondo: devuelve la URL actual si existe. */
+  async getBrandingLogo(req: Request, res: Response) {
+    try {
+      const current = getCurrentBrandingFile();
+      if (!current) {
+        return res.json({ url: null });
+      }
+      const basename = path.basename(current);
+      res.json({ url: '/assets/branding/' + basename });
+    } catch (_) {
+      res.json({ url: null });
+    }
+  }
+
+  /** Logo de fondo: subir imagen (se guarda en public/assets/branding/). */
+  async uploadBrandingLogo(req: Request, res: Response) {
+    const file = (req as any).file;
+    if (!file || !file.buffer) {
+      return res.status(400).json({ error: 'No se envió ningún archivo.' });
+    }
+    const ext = path.extname(file.originalname || '') || (file.mimetype ? '.' + file.mimetype.replace('image/', '') : '.png');
+    const safeExt = ['.png', '.jpg', '.jpeg', '.webp', '.svg'].includes(ext.toLowerCase()) ? ext : '.png';
+    ensureBrandingDir();
+    deleteBrandingFile();
+    const newName = BRANDING_BASENAME + safeExt;
+    const dest = path.join(BRANDING_DIR, newName);
+    try {
+      fs.writeFileSync(dest, file.buffer);
+    } catch (e) {
+      return res.status(500).json({ error: 'Error al guardar el archivo.' });
+    }
+    res.json({ ok: true, url: '/assets/branding/' + newName });
+  }
+
+  /** Logo de fondo: quitar logo personalizado. */
+  async removeBrandingLogo(req: Request, res: Response) {
+    try {
+      deleteBrandingFile();
+      res.json({ ok: true });
+    } catch (_) {
+      res.status(500).json({ error: 'Error al eliminar.' });
     }
   }
 }

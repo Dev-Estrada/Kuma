@@ -84,6 +84,20 @@
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema">
         <span id="theme-toggle-label">Modo oscuro</span>
       </button>
+
+      <div class="branding-settings" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+        <h3 class="branding-settings__title" style="margin: 0 0 0.5rem; font-size: 0.9375rem;">Logo de tu empresa</h3>
+        <p class="text-muted" style="margin: 0 0 0.75rem; font-size: 0.8125rem;">Se usará de fondo en las pantallas (efecto minimalista, un color según el tema). El archivo se guarda en el servidor; puedes usar imágenes de hasta 10 MB.</p>
+        <input type="file" id="branding-logo-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display: none;" />
+        <div class="branding-preview-wrap" style="margin-bottom: 0.75rem;">
+          <img id="branding-preview" src="/assets/logo.png" alt="Vista previa logo" class="branding-preview" style="max-height: 3rem; max-width: 120px; object-fit: contain; display: block;" />
+        </div>
+        <div class="form-row" style="gap: 0.5rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn--ghost btn--sm" id="btn-branding-select">Seleccionar logo</button>
+          <button type="button" class="btn btn--ghost btn--sm" id="btn-branding-remove">Quitar logo</button>
+        </div>
+      </div>
+
       <div class="modal__actions" style="margin-top: 1rem;">
         <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-appearance">Cerrar</button>
       </div>
@@ -118,7 +132,8 @@
     <div class="modal" style="max-width: 28rem;">
       <h2 class="modal__title">Copia de seguridad</h2>
       <p class="text-muted" style="margin: 0 0 1rem;">Descarga una copia del archivo de base de datos (inventory.db) para respaldo.</p>
-      <a href="/api/backup" class="btn btn--ghost" id="btn-backup" download="inventory.db">Descargar copia de seguridad</a>
+      <button type="button" class="btn btn--ghost" id="btn-backup">Descargar copia de seguridad</button>
+      <p id="backup-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
       <div class="modal__actions" style="margin-top: 1rem;">
         <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-backup">Cerrar</button>
       </div>
@@ -129,12 +144,12 @@
   <div id="settings-modal-restore" class="overlay" style="display: none; align-items: center; justify-content: center;">
     <div class="modal" style="max-width: 28rem;">
       <h2 class="modal__title">Restaurar desde copia</h2>
-      <p class="text-muted" style="margin: 0 0 1rem;">Sube un archivo .db (copia de seguridad o <strong>demoBD.db</strong>). La restauración se aplicará al <strong>reiniciar el servidor</strong>. Se guardará una copia de la base actual como inventory.db.bak.</p>
+      <p class="text-muted" style="margin: 0 0 1rem;">Sube un archivo .db (copia de seguridad). La restauración se aplica al instante; la página se recargará sola. Se guardará una copia de la base actual como inventory.db.bak.</p>
       <div class="form-group">
         <label for="restore-file">Seleccionar archivo (.db)</label>
         <input type="file" id="restore-file" accept=".db,application/octet-stream" />
       </div>
-      <button type="button" class="btn btn--primary" id="btn-restore" disabled>Restaurar (aplicar al reiniciar)</button>
+      <button type="button" class="btn btn--primary" id="btn-restore" disabled>Restaurar</button>
       <p id="restore-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
       <div class="modal__actions" style="margin-top: 1rem;">
         <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-restore">Cerrar</button>
@@ -146,7 +161,7 @@
   <div id="settings-modal-demo" class="overlay" style="display: none; align-items: center; justify-content: center;">
     <div class="modal" style="max-width: 28rem;">
       <h2 class="modal__title">Base de datos de demostración</h2>
-      <p class="text-muted" style="margin: 0 0 1rem;">Carga la base de datos <strong>demoBD.db</strong> con productos, ventas y clientes de ejemplo. Reinicie el servidor después para aplicarla.</p>
+      <p class="text-muted" style="margin: 0 0 1rem;">Carga la base de datos <strong>demoBD.db</strong> con productos, ventas y clientes de ejemplo. Se aplica al instante y la página se recargará.</p>
       <button type="button" class="btn btn--ghost" id="btn-restore-demo">Cargar base de datos de demostración</button>
       <p id="restore-demo-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
       <div class="modal__actions" style="margin-top: 1rem;">
@@ -194,6 +209,7 @@
   <div id="alert-modal-root"></div>
   <script src="/js/auth/auth.js"></script>
   <script src="/js/auth/auth-nav.js"></script>
+  <script src="/js/shared/branding.js"></script>
   <script src="/js/shared/print-utils.js"></script>
   <script src="/js/shared/alerts-notifications.js"></script>
   <script type="module" src="/js/pages/settings.js"></script>

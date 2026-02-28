@@ -149,6 +149,43 @@ function applySaleFilter() {
         msg.textContent = `${filtered.length} venta(s) encontrada(s).`;
     }
 }
+function getPaymentsFromSale(sale) {
+    if (sale.payments && sale.payments.length > 0) return sale.payments;
+    if (sale.paymentMethod)
+        return [{ method: sale.paymentMethod, amountUsd: sale.totalUsd ?? 0, bankCode: sale.paymentBankCode ?? null, reference: sale.paymentReference ?? null, mon: null }];
+    return [];
+}
+function formatPaymentInfoHtml(sale) {
+    const payments = getPaymentsFromSale(sale);
+    if (payments.length === 0) return '';
+    const lines = payments.map((p) => {
+        const label = PAYMENT_METHOD_LABELS[p.method] || p.method;
+        const bankName = p.bankCode ? (BANKS.find((b) => b.code === p.bankCode)?.name || p.bankCode) : '';
+        const rate = sale.exchangeRate || 0;
+        const amountBs = rate > 0 ? (Math.round(p.amountUsd * rate * 100) / 100) : 0;
+        let html = `<p><strong>${label}:</strong> $${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})</p>`;
+        if (p.bankCode && bankName) html += `<p><strong>Banco:</strong> ${bankName}</p>`;
+        if (p.reference) html += `<p><strong>Referencia:</strong> ${String(p.reference).replace(/</g, '&lt;')}</p>`;
+        if (p.mon) html += `<p><strong>MON:</strong> ${String(p.mon).replace(/</g, '&lt;')}</p>`;
+        return html;
+    });
+    return `<div class="sale-detail-payment"><p><strong>Pagos:</strong></p>${lines.join('')}</div>`;
+}
+function formatPaymentMessage(sale) {
+    const payments = getPaymentsFromSale(sale);
+    if (payments.length === 0) return 'Sin información de pago.';
+    return payments.map((p) => {
+        const label = PAYMENT_METHOD_LABELS[p.method] || p.method;
+        const bankName = p.bankCode ? (BANKS.find((b) => b.code === p.bankCode)?.name || p.bankCode) : '';
+        const rate = sale.exchangeRate || 0;
+        const amountBs = rate > 0 ? (Math.round(p.amountUsd * rate * 100) / 100) : 0;
+        let line = `${label}: $${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})`;
+        if (p.bankCode && bankName) line += ` · Banco: ${bankName}`;
+        if (p.reference) line += ` · Ref: ${String(p.reference).replace(/</g, '&lt;')}`;
+        if (p.mon) line += ` · MON: ${String(p.mon).replace(/</g, '&lt;')}`;
+        return line;
+    }).join('\n');
+}
 function openDetailModal(sale) {
     const modal = document.getElementById('sale-detail-modal');
     const title = document.getElementById('sale-detail-title');
@@ -156,18 +193,7 @@ function openDetailModal(sale) {
     title.textContent = `Venta #${sale.id}`;
     const subtotalBeforeDiscount = sale.items.reduce((s, i) => s + i.subtotalUsd, 0);
     const discount = sale.discountPercent ?? 0;
-    const paymentLabel = sale.paymentMethod ? (PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod) : '';
-    const bankName = sale.paymentBankCode ? (BANKS.find((b) => b.code === sale.paymentBankCode)?.name || sale.paymentBankCode) : '';
-    const paymentInfo = paymentLabel
-        ? `<div class="sale-detail-payment">
-          <p><strong>Método de pago:</strong> ${paymentLabel}</p>
-          ${sale.paymentBankCode && bankName ? `<p><strong>Banco:</strong> ${bankName}</p>` : ''}
-          ${sale.paymentReference ? `<p><strong>Referencia:</strong> ${String(sale.paymentReference).replace(/</g, '&lt;')}</p>` : ''}
-          ${sale.paymentCashReceived != null ? `<p><strong>Efectivo recibido:</strong> ${sale.paymentMethod === 'efectivo_usd' ? '$' + Number(sale.paymentCashReceived).toFixed(2) + ' USD' : 'Bs ' + Number(sale.paymentCashReceived).toFixed(2)}</p>` : ''}
-          ${(sale.paymentChangeUsd != null && sale.paymentChangeUsd > 0) ? `<p><strong>Cambio (USD):</strong> $${Number(sale.paymentChangeUsd).toFixed(2)}</p>` : ''}
-          ${(sale.paymentChangeBs != null && sale.paymentChangeBs > 0) ? `<p><strong>Cambio (Bs):</strong> Bs ${Number(sale.paymentChangeBs).toFixed(2)}</p>` : ''}
-        </div>`
-        : '';
+    const paymentInfo = formatPaymentInfoHtml(sale);
     content.innerHTML = `
     <div class="sale-detail-meta">
       <p><strong>Fecha y hora:</strong> ${formatDateTime(sale.createdAt)}</p>
@@ -212,33 +238,17 @@ function closeDetailModal() {
     document.getElementById('sale-detail-modal').style.display = 'none';
 }
 function showPaymentModal(sale) {
-    const paymentLabel = sale.paymentMethod ? (PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod) : '';
-    const bankName = sale.paymentBankCode ? (BANKS.find((b) => b.code === sale.paymentBankCode)?.name || sale.paymentBankCode) : '';
-    const parts = [`Método de pago: ${paymentLabel || '—'}`];
-    if (sale.paymentBankCode && bankName)
-        parts.push(`Banco: ${bankName}`);
-    if (sale.paymentReference)
-        parts.push(`Referencia: ${String(sale.paymentReference).replace(/</g, '&lt;')}`);
-    if (sale.paymentCashReceived != null)
-        parts.push(`Efectivo recibido: ${sale.paymentMethod === 'efectivo_usd' ? '$' + Number(sale.paymentCashReceived).toFixed(2) + ' USD' : 'Bs ' + Number(sale.paymentCashReceived).toFixed(2)}`);
-    if (sale.paymentChangeUsd != null && sale.paymentChangeUsd > 0)
-        parts.push(`Cambio (USD): $${Number(sale.paymentChangeUsd).toFixed(2)}`);
-    if (sale.paymentChangeBs != null && sale.paymentChangeBs > 0)
-        parts.push(`Cambio (Bs): Bs ${Number(sale.paymentChangeBs).toFixed(2)}`);
-    const message = parts.join('\n');
+    const message = formatPaymentMessage(sale);
     if (typeof window.showAlert === 'function') {
-        window.showAlert({ title: `Venta #${sale.id} – Método de pago`, message, type: 'info', skipNotificationSeen: true });
+        window.showAlert({ title: `Venta #${sale.id} – Métodos de pago`, message, type: 'info', skipNotificationSeen: true });
         return;
     }
     const root = document.getElementById('alert-modal-root');
     if (root) {
-        root.innerHTML = `<div class="alert-modal-overlay" id="payment-info-overlay"><div class="alert-modal"><h3 class="alert-modal__title">Venta #${sale.id} – Método de pago</h3><p class="alert-modal__message" style="white-space: pre-line;">${message.replace(/</g, '&lt;')}</p><button type="button" class="btn btn--ghost" id="payment-info-close">Cerrar</button></div></div>`;
+        root.innerHTML = `<div class="alert-modal-overlay" id="payment-info-overlay"><div class="alert-modal"><h3 class="alert-modal__title">Venta #${sale.id} – Métodos de pago</h3><p class="alert-modal__message" style="white-space: pre-line;">${message.replace(/</g, '&lt;')}</p><button type="button" class="btn btn--ghost" id="payment-info-close">Cerrar</button></div></div>`;
         root.style.display = 'block';
         document.getElementById('payment-info-close')?.addEventListener('click', () => { root.innerHTML = ''; root.style.display = 'none'; });
-        document.getElementById('payment-info-overlay')?.addEventListener('click', (ev) => { if (ev.target.id === 'payment-info-overlay') {
-            root.innerHTML = '';
-            root.style.display = 'none';
-        } });
+        document.getElementById('payment-info-overlay')?.addEventListener('click', (ev) => { if (ev.target.id === 'payment-info-overlay') { root.innerHTML = ''; root.style.display = 'none'; } });
     }
 }
 document.getElementById('sales-tbody')?.addEventListener('click', async (e) => {

@@ -105,57 +105,52 @@
     });
   </script>
   <div id="pos-payment-modal" class="overlay" style="display: none; align-items: center; justify-content: center;">
-    <div class="modal" style="max-width: 26rem;">
-      <h2 class="modal__title">Método de pago</h2>
-      <form id="pos-payment-form">
-        <div class="form-group">
-          <label for="payment-method">Método de pago *</label>
-          <select id="payment-method" required>
-            <option value="">Seleccione...</option>
-            <option value="pago_movil">Pago Móvil</option>
-            <option value="tarjeta_debito">Tarjeta de Débito</option>
-            <option value="efectivo_usd">Efectivo USD</option>
-            <option value="efectivo_bs">Efectivo Bs</option>
-          </select>
+    <div class="modal pos-payment-modal__box" style="max-width: 65rem;">
+      <h2 class="modal__title">Métodos de pago</h2>
+      <p class="text-muted" style="margin: 0 0 1rem;"><strong>Total a pagar:</strong> <span id="payment-total-usd-display">0.00</span> USD / <span id="payment-total-bs-display">0.00</span> Bs</p>
+      <div class="pos-payment-modal__columns">
+        <div class="pos-payment-modal__left">
+          <label class="form-group" style="margin-bottom: 0.5rem;">Pagos agregados</label>
+          <ul id="payment-list" class="payment-list"></ul>
+          <p id="payment-list-empty" class="text-muted" style="margin: 0.5rem 0 0; font-size: 0.875rem;">Aún no hay pagos. Agrega al menos uno.</p>
         </div>
-        <div id="payment-bank-ref" style="display: none;">
+        <div class="pos-payment-modal__right">
+          <h3 class="payment-add-title" style="margin: 0 0 0.75rem; font-size: 0.9375rem;">Agregar pago</h3>
           <div class="form-group">
-            <label for="payment-bank-search">Buscar banco</label>
-            <input type="text" id="payment-bank-search" placeholder="Buscar por código o nombre..." autocomplete="off" />
-          </div>
-          <div class="form-group">
-            <label for="payment-bank">Banco *</label>
-            <select id="payment-bank">
-              <option value="">Seleccione el banco...</option>
+            <label for="payment-method">Método</label>
+            <select id="payment-method">
+              <option value="pago_movil">Pago Móvil</option>
+              <option value="tarjeta_debito">Tarjeta de Débito</option>
+              <option value="efectivo_usd">Efectivo USD</option>
+              <option value="efectivo_bs">Efectivo Bs</option>
+              <option value="biopago">BioPago</option>
             </select>
           </div>
-          <div class="form-group">
-            <label for="payment-reference">Referencia de transacción *</label>
-            <input type="text" id="payment-reference" placeholder="Ej: 12345678" maxlength="50" />
+          <div class="form-group payment-amount-wrap">
+            <label for="payment-amount-input" id="payment-amount-label">Monto (USD) *</label>
+            <input type="number" id="payment-amount-input" min="0" step="0.01" placeholder="0.00" />
+            <p id="payment-amount-equivalent" class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.8125rem; display: none;"></p>
           </div>
-        </div>
-        <div id="payment-cash-usd" style="display: none;">
-          <div class="form-group">
-            <label for="payment-cash-received-usd">Efectivo recibido (USD) *</label>
-            <input type="number" id="payment-cash-received-usd" min="0" step="0.01" placeholder="0.00" />
+          <div id="payment-bank-ref" style="display: none;">
+            <div class="form-group payment-bank-search-wrap">
+              <label for="payment-bank-search">Buscar banco *</label>
+              <input type="text" id="payment-bank-search" placeholder="Escribe código o nombre del banco..." autocomplete="off" />
+              <div id="payment-bank-results" class="payment-bank-results" style="display: none;"></div>
+              <input type="hidden" id="payment-bank" value="" />
+            </div>
+            <div class="form-group">
+              <label for="payment-reference">Referencia *</label>
+              <input type="text" id="payment-reference" placeholder="Ej: 12345678" maxlength="50" />
+            </div>
           </div>
-          <p class="text-muted" style="margin: 0 0 0.5rem;"><strong>Total a pagar:</strong> <span id="payment-total-usd-display">0.00</span> USD</p>
-          <p class="text-muted" style="margin: 0 0 0.5rem;"><strong>Cambio (USD):</strong> <span id="payment-change-usd-display">0.00</span></p>
-          <p class="text-muted" style="margin: 0 0 1rem;"><strong>Cambio (Bs):</strong> <span id="payment-change-bs-display">0.00</span></p>
+          <button type="button" class="btn btn--ghost btn--sm" id="payment-add-btn" style="margin-top: 0.5rem;">Agregar pago</button>
         </div>
-        <div id="payment-cash-bs" style="display: none;">
-          <div class="form-group">
-            <label for="payment-cash-received-bs">Efectivo recibido (Bs) *</label>
-            <input type="number" id="payment-cash-received-bs" min="0" step="0.01" placeholder="0.00" />
-          </div>
-          <p class="text-muted" style="margin: 0 0 0.5rem;"><strong>Total a pagar:</strong> <span id="payment-total-bs-display">0.00</span> Bs</p>
-          <p class="text-muted" style="margin: 0 0 1rem;"><strong>Cambio (Bs):</strong> <span id="payment-change-bs-only-display">0.00</span></p>
-        </div>
-        <div class="form-row" style="justify-content: flex-end; gap: .5rem; margin-top: 1rem;">
-          <button type="button" class="btn btn--ghost" id="pos-payment-cancel">Cancelar</button>
-          <button type="submit" class="btn btn--primary" id="pos-payment-submit">Confirmar venta</button>
-        </div>
-      </form>
+      </div>
+      <p id="payment-summary" class="text-muted" style="margin: 0.75rem 0 0; font-size: 0.875rem;"></p>
+      <div class="form-row" style="justify-content: flex-end; gap: .5rem; margin-top: 1rem;">
+        <button type="button" class="btn btn--ghost" id="pos-payment-cancel">Cancelar</button>
+        <button type="button" class="btn btn--primary" id="pos-payment-submit">Confirmar venta</button>
+      </div>
     </div>
   </div>
   <div id="pos-new-client-modal" class="overlay" style="display: none; align-items: center; justify-content: center;">
@@ -196,6 +191,7 @@
   <div id="alert-modal-root"></div>
   <script src="/js/auth/auth.js"></script>
   <script src="/js/auth/auth-nav.js"></script>
+  <script src="/js/shared/branding.js"></script>
   <script src="/js/shared/alerts-notifications.js"></script>
   <script type="module" src="/js/pages/sales.js"></script>
 </body>

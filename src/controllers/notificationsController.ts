@@ -20,10 +20,23 @@ export class NotificationsController {
         lowStockCount: lowStock.length,
         items: [
           ...(rateOutdated
-            ? [{ id: 'rate', type: 'warning', title: 'Tasa de cambio desactualizada', message: 'Hace más de 7 días que no actualizas la tasa USD → Bs.', link: 'settings.html', linkText: 'Ir a Configuración' }]
+            ? [{ id: 'rate', type: 'warning', title: 'Tasa de cambio desactualizada', message: 'Hace más de 7 días que no actualizas la tasa USD → Bs.', link: '/pages/settings.html', linkText: 'Ir a Configuración' }]
             : []),
           ...(lowStock.length > 0
-            ? [{ id: 'lowstock', type: 'warning', title: 'Stock bajo', message: `${lowStock.length} producto(s) con stock por debajo del mínimo.`, link: 'inventory.html', linkText: 'Ver inventario' }]
+            ? [{
+                id: 'lowstock',
+                type: 'warning',
+                title: 'Stock bajo',
+                message: `${lowStock.length} producto(s) con stock por debajo del mínimo.`,
+                link: '/pages/inventory.html',
+                linkText: 'Ver inventario',
+                detail: lowStock.map((p: { name?: string; sku?: string; quantity?: number; minimumStock?: number }) => ({
+                  name: p.name || p.sku || '—',
+                  sku: p.sku || '—',
+                  quantity: p.quantity ?? 0,
+                  minimumStock: p.minimumStock ?? 0,
+                })),
+              }]
             : []),
         ],
       });

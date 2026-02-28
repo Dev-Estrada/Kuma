@@ -1,4 +1,4 @@
-import { BANKS } from '../shared/banks';
+import { BANKS, PAYMENT_METHOD_LABELS } from '../shared/banks';
 const API = '';
 let products = [];
 let cart = [];
@@ -195,6 +195,7 @@ function getTotals() {
     const totalBs = Math.round(totalUsd * exchangeRate * 100) / 100;
     return { totalUsd, totalBs, discountPercent };
 }
+const METHODS_WITH_BANK_REF = ['pago_movil', 'tarjeta_debito', 'biopago'];
 function openPaymentModal() {
     if (cart.length === 0) {
         showMsg('Añade al menos un producto al carrito.', true);
@@ -203,113 +204,165 @@ function openPaymentModal() {
     const { totalUsd, totalBs, discountPercent } = getTotals();
     const modal = document.getElementById('pos-payment-modal');
     const methodSelect = document.getElementById('payment-method');
+    const amountInput = document.getElementById('payment-amount-input');
+    const amountLabel = document.getElementById('payment-amount-label');
+    const amountEquivalent = document.getElementById('payment-amount-equivalent');
     const bankRef = document.getElementById('payment-bank-ref');
-    const cashUsd = document.getElementById('payment-cash-usd');
-    const cashBs = document.getElementById('payment-cash-bs');
     const bankSelect = document.getElementById('payment-bank');
     const bankSearchInput = document.getElementById('payment-bank-search');
     const refInput = document.getElementById('payment-reference');
-    const cashUsdInput = document.getElementById('payment-cash-received-usd');
-    const cashBsInput = document.getElementById('payment-cash-received-bs');
-    function fillBankSelect(filter) {
-        const q = (filter || '').trim().toLowerCase();
-        const list = q
-            ? BANKS.filter((b) => b.code.toLowerCase().includes(q) || b.name.toLowerCase().includes(q))
-            : BANKS;
-        bankSelect.innerHTML =
-            '<option value="">Seleccione el banco...</option>' +
-                list.map((b) => `<option value="${b.code}">${b.code} - ${b.name}</option>`).join('');
-    }
-    fillBankSelect('');
-    if (bankSearchInput)
-        bankSearchInput.value = '';
-    methodSelect.value = '';
+    const paymentList = document.getElementById('payment-list');
+    const paymentListEmpty = document.getElementById('payment-list-empty');
+    const paymentSummary = document.getElementById('payment-summary');
+    const addBtn = document.getElementById('payment-add-btn');
+    const submitBtn = document.getElementById('pos-payment-submit');
+
+    let paymentEntries = [];
+
+    if (bankSearchInput) bankSearchInput.value = '';
+    if (bankSelect) bankSelect.value = '';
+    methodSelect.value = 'pago_movil';
+    amountInput.value = '';
     refInput.value = '';
-    cashUsdInput.value = '';
-    cashBsInput.value = '';
     bankRef.style.display = 'none';
-    cashUsd.style.display = 'none';
-    cashBs.style.display = 'none';
+    const bankResultsEl = document.getElementById('payment-bank-results');
+    if (bankResultsEl) bankResultsEl.style.display = 'none';
+
+    function updateAmountLabelAndEquivalent() {
+        const method = methodSelect.value;
+        const isUsd = method === 'efectivo_usd';
+        if (amountLabel) amountLabel.textContent = isUsd ? 'Monto (USD) *' : 'Monto (Bs) *';
+        if (amountEquivalent) {
+            amountEquivalent.style.display = isUsd ? 'none' : 'block';
+            const val = parseFloat(amountInput.value || '0') || 0;
+            if (!isUsd && exchangeRate > 0 && val > 0) {
+                const equiv = Math.round((val / exchangeRate) * 100) / 100;
+                amountEquivalent.textContent = 'Equiv. USD: $' + equiv.toFixed(2);
+            } else {
+                amountEquivalent.textContent = '';
+            }
+        }
+    }
+
+    function updateAddFormVisibility() {
+        const method = methodSelect.value;
+        const show = METHODS_WITH_BANK_REF.indexOf(method) >= 0;
+        bankRef.style.display = show ? 'block' : 'none';
+        if (!show && bankResultsEl) bankResultsEl.style.display = 'none';
+        updateAmountLabelAndEquivalent();
+    }
+
+    function renderPaymentList() {
+        const totalPaid = paymentEntries.reduce((s, p) => s + p.amountUsd, 0);
+        paymentList.innerHTML = paymentEntries.map((p, i) => {
+            const label = PAYMENT_METHOD_LABELS[p.method] || p.method;
+            let extra = '';
+            if (p.bankCode) {
+                const bank = BANKS.find((b) => b.code === p.bankCode);
+                extra += bank ? ` · ${bank.name}` : '';
+            }
+            if (p.reference) extra += ` · Ref: ${String(p.reference).replace(/</g, '&lt;')}`;
+            const amountBs = Math.round((p.amountUsd * exchangeRate) * 100) / 100;
+            return `<li class="payment-list-item">
+              <span>${label} · $${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})${extra ? ` <span class="text-muted">${extra}</span>` : ''}</span>
+              <button type="button" class="btn btn--ghost btn--sm payment-remove-btn" data-index="${i}" aria-label="Quitar">Quitar</button>
+            </li>`;
+        }).join('');
+        paymentListEmpty.style.display = paymentEntries.length > 0 ? 'none' : 'block';
+        const paidRounded = Math.round(totalPaid * 100) / 100;
+        const ok = paidRounded >= totalUsd;
+        if (paymentEntries.length === 0) {
+            paymentSummary.textContent = 'Agrega al menos un pago. La suma debe ser mayor o igual al total.';
+            paymentSummary.style.color = '';
+        } else if (!ok) {
+                        const missingUsd = totalUsd - paidRounded;
+            const missingBs = totalUsd > 0 ? Math.round((missingUsd * totalBs / totalUsd) * 100) / 100 : 0;
+            paymentSummary.textContent = `Total pagado: $${paidRounded.toFixed(2)} USD. Falta $${missingUsd.toFixed(2)} USD (Bs ${missingBs.toFixed(2)}) para completar la venta.`;
+            paymentSummary.style.color = 'var(--danger, #c00)';
+        } else {
+            const paidBs = totalUsd > 0 ? Math.round((paidRounded * totalBs / totalUsd) * 100) / 100 : 0;
+            let msg = `Total pagado: $${paidRounded.toFixed(2)} USD (Bs ${paidBs.toFixed(2)}).`;
+            if (paidRounded > totalUsd) {
+                const changeUsd = paidRounded - totalUsd;
+                const changeBs = totalUsd > 0 ? Math.round((changeUsd * totalBs / totalUsd) * 100) / 100 : 0;
+                msg += ` Cambio: $${changeUsd.toFixed(2)} USD / Bs ${changeBs.toFixed(2)}.`;
+            }
+            paymentSummary.textContent = msg;
+            paymentSummary.style.color = '';
+        }
+        submitBtn.disabled = !ok;
+        paymentList.querySelectorAll('.payment-remove-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.getAttribute('data-index'), 10);
+                paymentEntries = paymentEntries.filter((_, i) => i !== idx);
+                renderPaymentList();
+            });
+        });
+    }
+
     (document.getElementById('payment-total-usd-display')).textContent = totalUsd.toFixed(2);
     (document.getElementById('payment-total-bs-display')).textContent = totalBs.toFixed(2);
-    (document.getElementById('payment-change-usd-display')).textContent = '0.00';
-    (document.getElementById('payment-change-bs-display')).textContent = '0.00';
-    (document.getElementById('payment-change-bs-only-display')).textContent = '0.00';
-    (document.getElementById('payment-total-bs-display')).textContent = totalBs.toFixed(2);
-    function updatePaymentUI() {
+    paymentEntries = [];
+    renderPaymentList();
+    updateAddFormVisibility();
+    methodSelect.addEventListener('change', updateAddFormVisibility);
+    if (amountInput) amountInput.addEventListener('input', updateAmountLabelAndEquivalent);
+
+    addBtn.onclick = () => {
         const method = methodSelect.value;
-        bankRef.style.display = method === 'pago_movil' || method === 'tarjeta_debito' ? 'block' : 'none';
-        cashUsd.style.display = method === 'efectivo_usd' ? 'block' : 'none';
-        cashBs.style.display = method === 'efectivo_bs' ? 'block' : 'none';
-        if (method === 'efectivo_usd') {
-            const received = parseFloat(cashUsdInput.value || '0') || 0;
-            const changeUsd = Math.max(0, Math.round((received - totalUsd) * 100) / 100);
-            const changeBs = Math.round(changeUsd * exchangeRate * 100) / 100;
-            (document.getElementById('payment-change-usd-display')).textContent = changeUsd.toFixed(2);
-            (document.getElementById('payment-change-bs-display')).textContent = changeBs.toFixed(2);
+        const amount = parseFloat(amountInput.value || '0') || 0;
+        if (amount <= 0) {
+            showMsg('El monto debe ser mayor a 0.', true);
+            return;
         }
-        if (method === 'efectivo_bs') {
-            const received = parseFloat(cashBsInput.value || '0') || 0;
-            const changeBs = Math.max(0, Math.round((received - totalBs) * 100) / 100);
-            (document.getElementById('payment-change-bs-only-display')).textContent = changeBs.toFixed(2);
+        const amountRounded = Math.round(amount * 100) / 100;
+        const amountUsd = method === 'efectivo_usd' ? amountRounded : Math.round((amountRounded / exchangeRate) * 100) / 100;
+        if (METHODS_WITH_BANK_REF.indexOf(method) >= 0) {
+            const ref = refInput.value?.trim();
+            if (!ref) {
+                showMsg('Indica la referencia de la transacción.', true);
+                return;
+            }
+            const bank = bankSelect.value?.trim();
+            paymentEntries.push({
+                method,
+                amountUsd,
+                bankCode: bank || null,
+                reference: ref,
+                mon: null,
+            });
+        } else {
+            paymentEntries.push({ method, amountUsd, bankCode: null, reference: null, mon: null });
         }
-    }
-    methodSelect.addEventListener('change', updatePaymentUI);
-    cashUsdInput.addEventListener('input', updatePaymentUI);
-    cashBsInput.addEventListener('input', updatePaymentUI);
-    modal.style.display = 'flex';
-    document.getElementById('pos-payment-cancel').onclick = () => {
-        modal.style.display = 'none';
+        amountInput.value = '';
+        if (amountEquivalent) amountEquivalent.textContent = '';
+        refInput.value = '';
+        renderPaymentList();
     };
-    document.getElementById('pos-payment-form').onsubmit = async (e) => {
-        e.preventDefault();
-        const method = methodSelect.value;
-        if (!method) {
-            showMsg('Seleccione un método de pago.', true);
+
+    modal.style.display = 'flex';
+    document.getElementById('pos-payment-cancel').onclick = () => { modal.style.display = 'none'; };
+
+    submitBtn.onclick = async () => {
+        const totalPaid = paymentEntries.reduce((s, p) => s + p.amountUsd, 0);
+        if (Math.round(totalPaid * 100) / 100 < totalUsd) {
+            showMsg('La suma de los pagos no puede ser menor al total de la venta.', true);
             return;
         }
         const clientIdEl = document.getElementById('pos-client-id');
         const clientId = clientIdEl?.value ? parseInt(clientIdEl.value, 10) : null;
         const body = {
             items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
-            discountPercent: getTotals().discountPercent,
-            paymentMethod: method,
+            discountPercent,
+            payments: paymentEntries.map((p) => ({
+                method: p.method,
+                amountUsd: p.amountUsd,
+                bankCode: p.bankCode || null,
+                reference: p.reference || null,
+                mon: null,
+            })),
         };
-        if (clientId != null && !isNaN(clientId))
-            body.clientId = clientId;
-        if (method === 'pago_movil' || method === 'tarjeta_debito') {
-            const bank = bankSelect.value?.trim();
-            const ref = refInput.value?.trim();
-            if (!ref) {
-                showMsg('Indique la referencia de la transacción.', true);
-                return;
-            }
-            body.paymentBankCode = bank || null;
-            body.paymentReference = ref;
-        }
-        if (method === 'efectivo_usd') {
-            const received = parseFloat(cashUsdInput.value || '0') || 0;
-            if (received < totalUsd) {
-                showMsg('El efectivo recibido no puede ser menor al total.', true);
-                return;
-            }
-            const changeUsd = Math.round((received - totalUsd) * 100) / 100;
-            const changeBs = Math.round(changeUsd * exchangeRate * 100) / 100;
-            body.paymentCashReceived = received;
-            body.paymentChangeUsd = changeUsd;
-            body.paymentChangeBs = changeBs;
-        }
-        if (method === 'efectivo_bs') {
-            const received = parseFloat(cashBsInput.value || '0') || 0;
-            if (received < totalBs) {
-                showMsg('El efectivo recibido no puede ser menor al total.', true);
-                return;
-            }
-            const changeBs = Math.round((received - totalBs) * 100) / 100;
-            body.paymentCashReceived = received;
-            body.paymentChangeBs = changeBs;
-        }
-        const submitBtn = document.getElementById('pos-payment-submit');
+        if (clientId != null && !isNaN(clientId)) body.clientId = clientId;
         submitBtn.disabled = true;
         try {
             const res = await fetch(`${API}/api/sales`, {
@@ -326,11 +379,9 @@ function openPaymentModal() {
             modal.style.display = 'none';
             clearCart();
             loadProducts();
-        }
-        catch (err) {
+        } catch (err) {
             showMsg('Sin conexión. Revisa la red y vuelve a intentar.', true);
-        }
-        finally {
+        } finally {
             submitBtn.disabled = false;
         }
     };
@@ -553,3 +604,43 @@ async function loadLowStockBanner() {
 loadRate();
 loadProducts();
 loadLowStockBanner();
+
+(function () {
+    const searchInput = document.getElementById('payment-bank-search');
+    const resultsEl = document.getElementById('payment-bank-results');
+    const hiddenBank = document.getElementById('payment-bank');
+    if (!searchInput || !resultsEl || !hiddenBank) return;
+    searchInput.addEventListener('input', function () {
+        const q = (this.value || '').trim().toLowerCase();
+        const list = q ? BANKS.filter(function (b) { return b.code.toLowerCase().includes(q) || b.name.toLowerCase().includes(q); }) : BANKS;
+        if (list.length === 0) {
+            resultsEl.innerHTML = '<div class="payment-bank-results__item" style="pointer-events:none; color: var(--text-muted);">Sin resultados</div>';
+        } else {
+            resultsEl.innerHTML = list.map(function (b) {
+                return '<button type="button" class="payment-bank-results__item" data-code="' + b.code + '" data-name="' + (b.name || '').replace(/"/g, '&quot;') + '"><span class="payment-bank-results__code">' + b.code + '</span>' + (b.name || '') + '</button>';
+            }).join('');
+        }
+        resultsEl.style.display = 'block';
+    });
+    searchInput.addEventListener('focus', function () {
+        if (this.value.trim()) return;
+        const list = BANKS;
+        resultsEl.innerHTML = list.map(function (b) {
+            return '<button type="button" class="payment-bank-results__item" data-code="' + b.code + '" data-name="' + (b.name || '').replace(/"/g, '&quot;') + '"><span class="payment-bank-results__code">' + b.code + '</span>' + (b.name || '') + '</button>';
+        }).join('');
+        resultsEl.style.display = list.length ? 'block' : 'none';
+    });
+    resultsEl.addEventListener('click', function (e) {
+        const item = e.target.closest('.payment-bank-results__item');
+        if (!item || item.getAttribute('data-code') == null) return;
+        const code = item.getAttribute('data-code');
+        const name = item.getAttribute('data-name') || '';
+        hiddenBank.value = code;
+        searchInput.value = name;
+        resultsEl.style.display = 'none';
+    });
+    document.addEventListener('click', function (e) {
+        if (resultsEl.style.display !== 'none' && e.target !== searchInput && e.target !== resultsEl && !resultsEl.contains(e.target))
+            resultsEl.style.display = 'none';
+    });
+})();

@@ -199,8 +199,6 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
           SUM(quantity) as totalUnits
       FROM products
       WHERE isActive = 1;
-
-      // Las categorías las crea el usuario desde la página Categorías (sin datos por defecto).
     `);
 
     const rateHistoryCount = await db.get<{ c: number }>('SELECT COUNT(*) as c FROM exchange_rate_history');
@@ -253,6 +251,22 @@ export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statem
       // La tabla sales puede ser de una versión antigua sin columna status; la migración ADD COLUMN ya la añadió o se ignoró
     }
 
+    // Tabla de pagos por venta (múltiples métodos por venta)
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS sale_payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        saleId INTEGER NOT NULL,
+        method TEXT NOT NULL,
+        amountUsd REAL NOT NULL,
+        bankCode TEXT,
+        reference TEXT,
+        mon TEXT,
+        FOREIGN KEY (saleId) REFERENCES sales(id) ON DELETE CASCADE,
+        CHECK (amountUsd >= 0)
+      )
+    `);
+    try { await db.run('CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(saleId)'); } catch (_) {}
+
     try { await db.run('CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status)'); } catch (_) {}
     try { await db.run('CREATE INDEX IF NOT EXISTS idx_sales_client ON sales(clientId)'); } catch (_) {}
 
@@ -301,6 +315,25 @@ export async function deleteCurrentDatabase(): Promise<void> {
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
   } catch (_) {
     // ignorar si no se puede eliminar
+  }
+}
+
+/**
+ * Cierra la conexión y aplica el archivo inventory.db.restore (si existe) sobre inventory.db.
+ * La siguiente llamada a getDb() abrirá la base de datos ya restaurada. No hace falta reiniciar el servidor.
+ */
+export async function applyRestoreNow(): Promise<void> {
+  await closeDb();
+  const cwd = process.cwd();
+  const restorePath = path.resolve(cwd, DB_RESTORE.replace(/^\.\//, ''));
+  const dbPath = path.resolve(cwd, DB_FILENAME.replace(/^\.\//, ''));
+  if (fs.existsSync(restorePath)) {
+    try {
+      if (fs.existsSync(dbPath)) fs.renameSync(dbPath, dbPath + '.bak');
+      fs.renameSync(restorePath, dbPath);
+    } catch (_) {
+      // si falla, getDb() intentará aplicar .restore en el próximo arranque
+    }
   }
 }
 

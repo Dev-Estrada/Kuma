@@ -81,6 +81,20 @@ async function loadDashboard() {
         )
         .join('');
     }
+    // Mostrar modal de bajo stock solo una vez al iniciar sesión y de nuevo solo si aumenta el número
+    const LOW_STOCK_KEY = 'kuma_low_stock_last_shown_count';
+    if (lowStock.length > 0) {
+      let lastShown: string | null = null;
+      try { lastShown = sessionStorage.getItem(LOW_STOCK_KEY); } catch (_) {}
+      const lastShownNum = lastShown === null || lastShown === '' ? -1 : parseInt(lastShown, 10);
+      const lastCount = Number.isNaN(lastShownNum) ? -1 : lastShownNum;
+      const shouldShow = lastCount < 0 || lowStock.length > lastCount;
+      if (shouldShow) {
+        const modalLow = document.getElementById('dashboard-modal-low-stock');
+        if (modalLow) (modalLow as HTMLElement).style.display = 'flex';
+        try { sessionStorage.setItem(LOW_STOCK_KEY, String(lowStock.length)); } catch (_) {}
+      }
+    }
 
     const rateReminder = document.getElementById('rate-reminder-alert');
     if (rateReminder && lastRate?.lastUpdate) {
