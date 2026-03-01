@@ -179,21 +179,27 @@ form.addEventListener('submit', async (e) => {
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             const msg = data.error || 'Error al guardar.';
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
-            else alert(msg);
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: msg, type: 'error' });
+            else
+                alert(msg);
             return;
         }
         closeModal();
         editingProduct = null;
         loadAndRender();
         const successMsg = id ? 'Producto actualizado correctamente.' : 'Producto creado correctamente.';
-        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: successMsg, type: 'success' });
-        else alert(successMsg);
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Listo', message: successMsg, type: 'success' });
+        else
+            alert(successMsg);
     }
     catch (err) {
         const msg = err && err.message ? err.message : 'Error de conexión al guardar.';
-        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
-        else alert(msg);
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: msg, type: 'error' });
+        else
+            alert(msg);
     }
 });
 document.getElementById('btn-cancel-product')?.addEventListener('click', closeModal);
@@ -209,8 +215,10 @@ document.getElementById('btn-export-csv')?.addEventListener('click', async (e) =
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             const msg = data.error || 'Error al exportar.';
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
-            else alert(msg);
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: msg, type: 'error' });
+            else
+                alert(msg);
             return;
         }
         const blob = await res.blob();
@@ -219,8 +227,10 @@ document.getElementById('btn-export-csv')?.addEventListener('click', async (e) =
         a.download = 'inventario.csv';
         a.click();
         URL.revokeObjectURL(a.href);
-        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Exportado correctamente. El archivo se ha descargado.', type: 'success' });
-        else alert('Exportado correctamente.');
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Listo', message: 'Exportado correctamente. El archivo se ha descargado.', type: 'success' });
+        else
+            alert('Exportado correctamente.');
     }
     catch (_) {
         if (typeof window.showAlert === 'function')
@@ -248,14 +258,18 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 const msg = data.error || 'Error al actualizar favorito.';
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
-                else alert(msg);
+                if (typeof window.showAlert === 'function')
+                    window.showAlert({ title: 'Error', message: msg, type: 'error' });
+                else
+                    alert(msg);
                 return;
             }
             loadAndRender();
             const successMsg = isFav ? 'Producto añadido a favoritos.' : 'Producto quitado de favoritos.';
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: successMsg, type: 'success' });
-            else alert(successMsg);
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Listo', message: successMsg, type: 'success' });
+            else
+                alert(successMsg);
         }
         catch (_) {
             if (typeof window.showAlert === 'function')
@@ -282,15 +296,20 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 const msg = data.error || 'Error al cargar el producto.';
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
-                else alert(msg);
+                if (typeof window.showAlert === 'function')
+                    window.showAlert({ title: 'Error', message: msg, type: 'error' });
+                else
+                    alert(msg);
                 return;
             }
             const p = await res.json();
             openModal(p);
-        } catch (_) {
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión al cargar el producto.', type: 'error' });
-            else alert('Error de conexión al cargar el producto.');
+        }
+        catch (_) {
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: 'Error de conexión al cargar el producto.', type: 'error' });
+            else
+                alert('Error de conexión al cargar el producto.');
         }
         return;
     }
@@ -302,16 +321,23 @@ document.getElementById('products-tbody')?.addEventListener('click', async (e) =
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 const msg = data.error || 'Error al eliminar el producto.';
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: msg, type: 'error' });
-                else alert(msg);
+                if (typeof window.showAlert === 'function')
+                    window.showAlert({ title: 'Error', message: msg, type: 'error' });
+                else
+                    alert(msg);
                 return;
             }
             loadAndRender();
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Producto eliminado correctamente.', type: 'success' });
-            else alert('Producto eliminado correctamente.');
-        } catch (_) {
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión al eliminar.', type: 'error' });
-            else alert('Error de conexión al eliminar.');
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Listo', message: 'Producto eliminado correctamente.', type: 'success' });
+            else
+                alert('Producto eliminado correctamente.');
+        }
+        catch (_) {
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: 'Error de conexión al eliminar.', type: 'error' });
+            else
+                alert('Error de conexión al eliminar.');
         }
     }
 });
@@ -350,8 +376,10 @@ document.getElementById('btn-adjust-save')?.addEventListener('click', async () =
         }
         document.getElementById('adjust-modal').style.display = 'none';
         loadAndRender();
-        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Stock ajustado correctamente.', type: 'success' });
-        else alert('Stock ajustado correctamente.');
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Listo', message: 'Stock ajustado correctamente.', type: 'success' });
+        else
+            alert('Stock ajustado correctamente.');
     }
     catch (_) {
         if (typeof window.showAlert === 'function')

@@ -5,6 +5,16 @@
 (function () {
   const TOKEN_KEY = 'kuma_token';
   const USER_KEY = 'kuma_user';
+
+  if (window.location.search.indexOf('clearSession=1') !== -1) {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    } catch (_) {}
+    var cleanUrl = window.location.pathname + (window.location.hash || '');
+    if (window.history.replaceState) window.history.replaceState(null, '', cleanUrl);
+  }
+
   const isLoginPage = window.location.pathname.endsWith('login.html') || window.location.pathname === '/login.html' || window.location.pathname.endsWith('/login');
 
   function getToken() {

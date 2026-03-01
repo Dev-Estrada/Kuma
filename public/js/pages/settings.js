@@ -10,7 +10,6 @@ function applyAdminOnlyVisibility() {
         el.style.display = isAdmin ? '' : 'none';
     });
 }
-
 function openSettingsModal(modalId, onOpen) {
     const modal = document.getElementById(modalId);
     if (modal) {
@@ -24,10 +23,10 @@ function closeSettingsModal(modalId) {
     if (modal)
         modal.style.display = 'none';
 }
-
 function updateBrandingPreview() {
     const preview = document.getElementById('branding-preview');
-    if (!preview) return;
+    if (!preview)
+        return;
     const url = window.getCustomLogo ? window.getCustomLogo() : null;
     preview.src = url || '/assets/logo.png';
 }
@@ -36,27 +35,34 @@ async function loadBrandingFromServer() {
         const r = await getJson('/api/settings/branding-logo');
         if (r && r.url && typeof window.setCustomLogoUrl === 'function') {
             window.setCustomLogoUrl(r.url);
-            if (typeof window.applyCustomBranding === 'function') window.applyCustomBranding();
+            if (typeof window.applyCustomBranding === 'function')
+                window.applyCustomBranding();
         }
-    } catch (_) {}
+    }
+    catch (_) { }
 }
 document.getElementById('btn-settings-appearance')?.addEventListener('click', () => openSettingsModal('settings-modal-appearance', () => {
     loadBrandingFromServer().then(() => updateBrandingPreview());
 }));
-
 document.getElementById('btn-branding-select')?.addEventListener('click', () => document.getElementById('branding-logo-input')?.click());
 document.getElementById('btn-branding-remove')?.addEventListener('click', async () => {
     try {
         await fetch(`${API}/api/settings/branding-logo`, { method: 'DELETE', credentials: 'same-origin' });
-    } catch (_) {}
-    if (typeof window.setCustomLogoUrl === 'function') window.setCustomLogoUrl(null);
+    }
+    catch (_) { }
+    if (typeof window.setCustomLogoUrl === 'function')
+        window.setCustomLogoUrl(null);
     updateBrandingPreview();
-    if (typeof window.applyCustomBranding === 'function') window.applyCustomBranding();
-    if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Logo de fondo quitado.', type: 'success' });
+    if (typeof window.applyCustomBranding === 'function')
+        window.applyCustomBranding();
+    if (typeof window.showAlert === 'function')
+        window.showAlert({ title: 'Listo', message: 'Logo de fondo quitado.', type: 'success' });
 });
 document.getElementById('branding-logo-input')?.addEventListener('change', async function (e) {
-    const file = e.target?.files?.[0];
-    if (!file) return;
+    const input = e.target;
+    const file = input?.files?.[0];
+    if (!file)
+        return;
     const formData = new FormData();
     formData.append('logo', file);
     try {
@@ -67,28 +73,31 @@ document.getElementById('branding-logo-input')?.addEventListener('change', async
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: err.error || 'No se pudo subir el logo.', type: 'error' });
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Error', message: err.error || 'No se pudo subir el logo.', type: 'error' });
             return;
         }
         const data = await res.json();
         if (data && data.url && typeof window.setCustomLogoUrl === 'function') {
             window.setCustomLogoUrl(data.url);
             updateBrandingPreview();
-            if (typeof window.applyCustomBranding === 'function') window.applyCustomBranding();
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Logo de fondo guardado. Se aplicará en todas las pantallas.', type: 'success' });
+            if (typeof window.applyCustomBranding === 'function')
+                window.applyCustomBranding();
+            if (typeof window.showAlert === 'function')
+                window.showAlert({ title: 'Listo', message: 'Logo de fondo guardado. Se aplicará en todas las pantallas.', type: 'success' });
         }
-    } catch (err) {
-        if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'No se pudo subir el logo.', type: 'error' });
     }
-    e.target.value = '';
+    catch (err) {
+        if (typeof window.showAlert === 'function')
+            window.showAlert({ title: 'Error', message: 'No se pudo subir el logo.', type: 'error' });
+    }
+    input.value = '';
 });
 document.getElementById('btn-settings-rate')?.addEventListener('click', () => openSettingsModal('settings-modal-rate', () => loadRate()));
 document.getElementById('btn-settings-backup')?.addEventListener('click', () => openSettingsModal('settings-modal-backup'));
 document.getElementById('btn-settings-restore')?.addEventListener('click', () => openSettingsModal('settings-modal-restore'));
 document.getElementById('btn-settings-demo')?.addEventListener('click', () => openSettingsModal('settings-modal-demo'));
 document.getElementById('btn-settings-delete-db')?.addEventListener('click', () => openSettingsModal('settings-modal-delete-db'));
-document.getElementById('btn-settings-auto-backup')?.addEventListener('click', () => openSettingsModal('settings-modal-auto-backup'));
-
 document.querySelectorAll('[data-settings-close]').forEach((btn) => {
     btn.addEventListener('click', () => {
         const modalId = btn.getAttribute('data-settings-close');
@@ -96,7 +105,7 @@ document.querySelectorAll('[data-settings-close]').forEach((btn) => {
             closeSettingsModal(modalId);
     });
 });
-['settings-modal-appearance', 'settings-modal-rate', 'settings-modal-backup', 'settings-modal-restore', 'settings-modal-demo', 'settings-modal-delete-db', 'settings-modal-auto-backup'].forEach((modalId) => {
+['settings-modal-appearance', 'settings-modal-rate', 'settings-modal-backup', 'settings-modal-restore', 'settings-modal-demo', 'settings-modal-delete-db'].forEach((modalId) => {
     document.getElementById(modalId)?.addEventListener('click', (e) => {
         if (e.target && e.target.id === modalId)
             closeSettingsModal(modalId);
@@ -296,8 +305,13 @@ if (btnBackup && backupMsg) {
             const res = await fetch(`${API}/api/backup`);
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: data.error || 'No se pudo descargar la copia. Compruebe que tiene permisos de administrador.', type: 'error' });
-                else { backupMsg.style.display = 'block'; backupMsg.textContent = data.error || 'No se pudo descargar la copia.'; }
+                const showAlert = window.showAlert;
+                if (typeof showAlert === 'function')
+                    showAlert({ title: 'Error', message: data.error || 'No se pudo descargar la copia. Compruebe que tiene permisos de administrador.', type: 'error' });
+                else {
+                    backupMsg.style.display = 'block';
+                    backupMsg.textContent = data.error || 'No se pudo descargar la copia.';
+                }
                 return;
             }
             const blob = await res.blob();
@@ -310,11 +324,20 @@ if (btnBackup && backupMsg) {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Listo', message: 'Copia de Seguridad descargada correctamente.', type: 'success', skipNotificationSeen: true });
-        } catch (e) {
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión al descargar.', type: 'error' });
-            else { backupMsg.style.display = 'block'; backupMsg.textContent = 'Error de conexión al descargar.'; }
-        } finally {
+            const showAlertOk = window.showAlert;
+            if (typeof showAlertOk === 'function')
+                showAlertOk({ title: 'Listo', message: 'Copia de Seguridad descargada correctamente.', type: 'success', skipNotificationSeen: true });
+        }
+        catch (e) {
+            const showAlertErr = window.showAlert;
+            if (typeof showAlertErr === 'function')
+                showAlertErr({ title: 'Error', message: 'Error de conexión al descargar.', type: 'error' });
+            else {
+                backupMsg.style.display = 'block';
+                backupMsg.textContent = 'Error de conexión al descargar.';
+            }
+        }
+        finally {
             btnBackup.disabled = false;
         }
     });
@@ -355,18 +378,37 @@ if (restoreFile && btnRestore && restoreMsg) {
             restoreMsg.textContent = '';
             if (res.ok && data.ok) {
                 const msg = data.message || 'Restauración aplicada. Al cerrar esta ventana se recargará la página para usar la nueva base de datos.';
-                if (typeof window.showAlert === 'function') {
-                    window.showAlert({ title: 'Restauración completada', message: msg, type: 'success', skipNotificationSeen: true, onClose: function () { restoreFile.value = ''; btnRestore.setAttribute('disabled', 'true'); location.reload(); } });
-                } else { restoreFile.value = ''; btnRestore.setAttribute('disabled', 'true'); setTimeout(() => location.reload(), 1500); }
-            } else {
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error al restaurar', message: data.error || 'No se pudo restaurar la copia.', type: 'error' });
-                else { restoreMsg.style.display = 'block'; restoreMsg.textContent = data.error || 'Error al restaurar.'; restoreMsg.className = 'msg msg--error mt-1 mb-0'; }
+                const showAlert = window.showAlert;
+                if (typeof showAlert === 'function') {
+                    showAlert({ title: 'Restauración completada', message: msg, type: 'success', skipNotificationSeen: true, onClose: () => { restoreFile.value = ''; btnRestore.setAttribute('disabled', 'true'); location.reload(); } });
+                }
+                else {
+                    restoreFile.value = '';
+                    btnRestore.setAttribute('disabled', 'true');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            }
+            else {
+                const showAlertErr = window.showAlert;
+                if (typeof showAlertErr === 'function')
+                    showAlertErr({ title: 'Error al restaurar', message: data.error || 'No se pudo restaurar la copia.', type: 'error' });
+                else {
+                    restoreMsg.style.display = 'block';
+                    restoreMsg.textContent = data.error || 'Error al restaurar.';
+                    restoreMsg.className = 'msg msg--error mt-1 mb-0';
+                }
             }
         }
         catch (e) {
             restoreMsg.style.display = 'none';
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión al restaurar.', type: 'error' });
-            else { restoreMsg.style.display = 'block'; restoreMsg.textContent = 'Error de conexión.'; restoreMsg.className = 'msg msg--error mt-1 mb-0'; }
+            const showAlertErr = window.showAlert;
+            if (typeof showAlertErr === 'function')
+                showAlertErr({ title: 'Error', message: 'Error de conexión al restaurar.', type: 'error' });
+            else {
+                restoreMsg.style.display = 'block';
+                restoreMsg.textContent = 'Error de conexión.';
+                restoreMsg.className = 'msg msg--error mt-1 mb-0';
+            }
         }
     });
 }
@@ -384,18 +426,34 @@ if (btnRestoreDemo && restoreDemoMsg) {
             restoreDemoMsg.textContent = '';
             if (res.ok && data.ok) {
                 const msg = data.message || 'Base de datos de demostración aplicada. Al cerrar esta ventana se recargará la página.';
-                if (typeof window.showAlert === 'function') {
-                    window.showAlert({ title: 'Base de datos de demostración', message: msg, type: 'success', skipNotificationSeen: true, onClose: function () { location.reload(); } });
-                } else setTimeout(() => location.reload(), 1500);
-            } else {
-                if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: data.error || 'No se encontró demoBD.db. Ejecute: node scripts/create-demo-db.js', type: 'error' });
-                else { restoreDemoMsg.style.display = 'block'; restoreDemoMsg.textContent = data.error || 'Error.'; restoreDemoMsg.className = 'msg msg--error mt-1 mb-0'; }
+                const showAlert = window.showAlert;
+                if (typeof showAlert === 'function') {
+                    showAlert({ title: 'Base de datos de demostración', message: msg, type: 'success', skipNotificationSeen: true, onClose: () => location.reload() });
+                }
+                else
+                    setTimeout(() => location.reload(), 1500);
+            }
+            else {
+                const showAlertErr = window.showAlert;
+                if (typeof showAlertErr === 'function')
+                    showAlertErr({ title: 'Error', message: data.error || 'No se encontró demoBD.db. Ejecute: node scripts/create-demo-db.js', type: 'error' });
+                else {
+                    restoreDemoMsg.style.display = 'block';
+                    restoreDemoMsg.textContent = data.error || 'Error.';
+                    restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
+                }
             }
         }
         catch (e) {
             restoreDemoMsg.style.display = 'none';
-            if (typeof window.showAlert === 'function') window.showAlert({ title: 'Error', message: 'Error de conexión.', type: 'error' });
-            else { restoreDemoMsg.style.display = 'block'; restoreDemoMsg.textContent = 'Error de conexión.'; restoreDemoMsg.className = 'msg msg--error mt-1 mb-0'; }
+            const showAlertErr = window.showAlert;
+            if (typeof showAlertErr === 'function')
+                showAlertErr({ title: 'Error', message: 'Error de conexión.', type: 'error' });
+            else {
+                restoreDemoMsg.style.display = 'block';
+                restoreDemoMsg.textContent = 'Error de conexión.';
+                restoreDemoMsg.className = 'msg msg--error mt-1 mb-0';
+            }
         }
     });
 }
@@ -412,8 +470,11 @@ if (btnDeleteDb && deleteDbMsg) {
             const res = await fetch(`${API}/api/backup/delete-database`, { method: 'POST' });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
-                const msg = data.message || 'Base de datos eliminada. Recargue la página; se creará una base de datos nueva. Si desea restaurar datos, use "Restaurar desde copia".';
-                try { sessionStorage.setItem('kuma_redirect_message', msg); } catch (_) {}
+                try {
+                    localStorage.removeItem('kuma_token');
+                    localStorage.removeItem('kuma_user');
+                    sessionStorage.setItem('kuma_redirect_message', data.message || 'Base de datos eliminada. Inicie sesión con admin / Admin123!');
+                } catch (_) {}
                 window.location.replace('/login.html');
             }
             else {

@@ -2,7 +2,7 @@
   "name": "inventory-system",
   "version": "1.0.0",
   "description": "Simple inventory system for a warehouse.",
-  "main": "dist/server.js",
+  "main": "electron-main.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
@@ -10,7 +10,11 @@
     "build:frontend": "tsc -p public && sass public/scss/styles.scss public/css/styles.css --no-source-map",
     "migrate:sales": "node scripts/migrate-sales.js",
     "create-demo-db": "node scripts/create-demo-db.js",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "electron": "electron .",
+    "dist": "npm run build && electron-builder --win",
+    "dist:vs": "scripts\\dist-with-vs-env.cmd",
+    "obfuscate": "node scripts/obfuscate.js"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +27,10 @@
     "sqlite3": "^5.1.4"
   },
   "devDependencies": {
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9",
+    "javascript-obfuscator": "^4.1.1",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/multer": "^2.0.0",
@@ -30,5 +38,18 @@
     "sass": "^1.63.6",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.1.6"
+  },
+  "build": {
+    "appId": "com.kuma.inventory",
+    "productName": "KUMA",
+    "directories": { "output": "release" },
+    "files": ["electron-main.js", "dist/**/*", "public/**/*", "node_modules/**/*", "demoBD.db"],
+    "asarUnpack": ["**/node_modules/sqlite3/**"],
+    "npmRebuild": false,
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false,
+      "icon": "public/assets/icon.ico"
+    }
   }
 }

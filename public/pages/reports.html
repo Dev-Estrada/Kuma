@@ -47,6 +47,7 @@
       <h1 class="page-title">Reportes</h1>
       <div class="controls-bar" style="margin-bottom: 1rem;">
         <button type="button" class="btn btn--ghost" id="btn-report-day">Cierre del Día (Hoy)</button>
+        <button type="button" class="btn btn--ghost" id="btn-report-backup">Crear copia de seguridad</button>
         <button type="button" class="btn btn--ghost" id="btn-report-period">Ventas por período</button>
         <button type="button" class="btn btn--ghost" id="btn-report-inventory">Valor del Inventario</button>
         <button type="button" class="btn btn--ghost" id="btn-print-report">Imprimir Reporte</button>
@@ -86,7 +87,8 @@
       <div id="day-summary-content" class="reports-summary">
         <span id="day-summary-msg">Cargando…</span>
       </div>
-      <div class="modal__actions" style="margin-top: 1rem;">
+      <div class="modal__actions" style="margin-top: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <button type="button" class="btn btn--ghost" id="btn-report-backup-in-modal">Crear copia de seguridad</button>
         <button type="button" class="btn btn--ghost" id="report-modal-day-close">Cerrar</button>
       </div>
     </div>

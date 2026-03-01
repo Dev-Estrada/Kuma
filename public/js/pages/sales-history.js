@@ -1,5 +1,52 @@
 import { BANKS, PAYMENT_METHOD_LABELS } from '../shared/banks';
 const API = '';
+function getPaymentsFromSale(sale) {
+    if (sale.payments && sale.payments.length > 0)
+        return sale.payments;
+    if (sale.paymentMethod)
+        return [{ method: sale.paymentMethod, amountUsd: sale.totalUsd ?? 0, bankCode: sale.paymentBankCode ?? null, reference: sale.paymentReference ?? null, mon: null }];
+    return [];
+}
+function formatPaymentInfoHtml(sale) {
+    const payments = getPaymentsFromSale(sale);
+    if (payments.length === 0)
+        return '';
+    const lines = payments.map((p) => {
+        const label = PAYMENT_METHOD_LABELS[p.method] || p.method;
+        const bankName = p.bankCode ? (BANKS.find((b) => b.code === p.bankCode)?.name || p.bankCode) : '';
+        const rate = sale.exchangeRate || 0;
+        const amountBs = rate > 0 ? Math.round(p.amountUsd * rate * 100) / 100 : 0;
+        let html = `<p><strong>${label}:</strong> $${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})</p>`;
+        if (p.bankCode && bankName)
+            html += `<p><strong>Banco:</strong> ${bankName}</p>`;
+        if (p.reference)
+            html += `<p><strong>Referencia:</strong> ${String(p.reference).replace(/</g, '&lt;')}</p>`;
+        if (p.mon)
+            html += `<p><strong>MON:</strong> ${String(p.mon).replace(/</g, '&lt;')}</p>`;
+        return html;
+    });
+    return `<div class="sale-detail-payment"><p><strong>Pagos:</strong></p>${lines.join('')}</div>`;
+}
+function formatPaymentMessage(sale) {
+    const payments = getPaymentsFromSale(sale);
+    if (payments.length === 0)
+        return 'Sin información de pago.';
+    const parts = payments.map((p) => {
+        const label = PAYMENT_METHOD_LABELS[p.method] || p.method;
+        const bankName = p.bankCode ? (BANKS.find((b) => b.code === p.bankCode)?.name || p.bankCode) : '';
+        const rate = sale.exchangeRate || 0;
+        const amountBs = rate > 0 ? Math.round(p.amountUsd * rate * 100) / 100 : 0;
+        let line = `${label}: $${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})`;
+        if (p.bankCode && bankName)
+            line += ` · Banco: ${bankName}`;
+        if (p.reference)
+            line += ` · Ref: ${String(p.reference).replace(/</g, '&lt;')}`;
+        if (p.mon)
+            line += ` · MON: ${String(p.mon).replace(/</g, '&lt;')}`;
+        return line;
+    });
+    return parts.join('\n');
+}
 async function getJson(url) {
     const res = await fetch(`${API}${url}`);
     if (!res.ok)
@@ -140,10 +187,7 @@ function applySaleFilter() {
         return;
     }
     const qLower = q.toLowerCase();
-    const filtered = allSales.filter((s) =>
-        String(s.id).includes(q) ||
-        ((s.clientName || '').toLowerCase().includes(qLower))
-    );
+    const filtered = allSales.filter((s) => String(s.id).includes(q) || (s.clientName || '').toLowerCase().includes(qLower));
     currentSalesPage = 1;
     renderSalesRows(filtered, 1);
     if (filtered.length === 0) {
@@ -152,43 +196,6 @@ function applySaleFilter() {
     else {
         msg.textContent = `${filtered.length} venta(s) encontrada(s).`;
     }
-}
-function getPaymentsFromSale(sale) {
-    if (sale.payments && sale.payments.length > 0) return sale.payments;
-    if (sale.paymentMethod)
-        return [{ method: sale.paymentMethod, amountUsd: sale.totalUsd ?? 0, bankCode: sale.paymentBankCode ?? null, reference: sale.paymentReference ?? null, mon: null }];
-    return [];
-}
-function formatPaymentInfoHtml(sale) {
-    const payments = getPaymentsFromSale(sale);
-    if (payments.length === 0) return '';
-    const lines = payments.map((p) => {
-        const label = PAYMENT_METHOD_LABELS[p.method] || p.method;
-        const bankName = p.bankCode ? (BANKS.find((b) => b.code === p.bankCode)?.name || p.bankCode) : '';
-        const rate = sale.exchangeRate || 0;
-        const amountBs = rate > 0 ? (Math.round(p.amountUsd * rate * 100) / 100) : 0;
-        let html = `<p><strong>${label}:</strong> $${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})</p>`;
-        if (p.bankCode && bankName) html += `<p><strong>Banco:</strong> ${bankName}</p>`;
-        if (p.reference) html += `<p><strong>Referencia:</strong> ${String(p.reference).replace(/</g, '&lt;')}</p>`;
-        if (p.mon) html += `<p><strong>MON:</strong> ${String(p.mon).replace(/</g, '&lt;')}</p>`;
-        return html;
-    });
-    return `<div class="sale-detail-payment"><p><strong>Pagos:</strong></p>${lines.join('')}</div>`;
-}
-function formatPaymentMessage(sale) {
-    const payments = getPaymentsFromSale(sale);
-    if (payments.length === 0) return 'Sin información de pago.';
-    return payments.map((p) => {
-        const label = PAYMENT_METHOD_LABELS[p.method] || p.method;
-        const bankName = p.bankCode ? (BANKS.find((b) => b.code === p.bankCode)?.name || p.bankCode) : '';
-        const rate = sale.exchangeRate || 0;
-        const amountBs = rate > 0 ? (Math.round(p.amountUsd * rate * 100) / 100) : 0;
-        let line = `${label}: $${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})`;
-        if (p.bankCode && bankName) line += ` · Banco: ${bankName}`;
-        if (p.reference) line += ` · Ref: ${String(p.reference).replace(/</g, '&lt;')}`;
-        if (p.mon) line += ` · MON: ${String(p.mon).replace(/</g, '&lt;')}`;
-        return line;
-    }).join('\n');
 }
 function openDetailModal(sale) {
     const modal = document.getElementById('sale-detail-modal');
@@ -252,7 +259,10 @@ function showPaymentModal(sale) {
         root.innerHTML = `<div class="alert-modal-overlay" id="payment-info-overlay"><div class="alert-modal"><h3 class="alert-modal__title">Venta #${sale.id} – Métodos de pago</h3><p class="alert-modal__message" style="white-space: pre-line;">${message.replace(/</g, '&lt;')}</p><button type="button" class="btn btn--ghost" id="payment-info-close">Cerrar</button></div></div>`;
         root.style.display = 'block';
         document.getElementById('payment-info-close')?.addEventListener('click', () => { root.innerHTML = ''; root.style.display = 'none'; });
-        document.getElementById('payment-info-overlay')?.addEventListener('click', (ev) => { if (ev.target.id === 'payment-info-overlay') { root.innerHTML = ''; root.style.display = 'none'; } });
+        document.getElementById('payment-info-overlay')?.addEventListener('click', (ev) => { if (ev.target.id === 'payment-info-overlay') {
+            root.innerHTML = '';
+            root.style.display = 'none';
+        } });
     }
 }
 document.getElementById('sales-tbody')?.addEventListener('click', async (e) => {
@@ -304,10 +314,7 @@ function getSalesToPrint() {
     if (!q)
         return allSales;
     const qLower = q.toLowerCase();
-    return allSales.filter((s) =>
-        String(s.id).includes(q) ||
-        ((s.clientName || '').toLowerCase().includes(qLower))
-    );
+    return allSales.filter((s) => String(s.id).includes(q) || (s.clientName || '').toLowerCase().includes(qLower));
 }
 document.getElementById('btn-print-sales')?.addEventListener('click', () => {
     const sales = getSalesToPrint();

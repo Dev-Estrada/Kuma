@@ -6,6 +6,7 @@ const router = Router();
 const ctrl = new BackupController();
 
 router.get('/', adminOnly, ctrl.download.bind(ctrl));
+router.post('/save', ctrl.saveToBackupsFolder.bind(ctrl));
 router.post('/restore', adminOnly, ctrl.restore.bind(ctrl));
 router.post('/restore-demo', adminOnly, ctrl.restoreDemo.bind(ctrl));
 router.post('/delete-database', adminOnly, ctrl.deleteDatabase.bind(ctrl));

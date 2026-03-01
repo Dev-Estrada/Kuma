@@ -52,7 +52,6 @@
         <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-restore">Restaurar desde copia</button>
         <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-demo">Base de datos demo</button>
         <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-delete-db">Eliminar BD actual</button>
-        <button type="button" class="btn btn--ghost settings-btn--admin-only" id="btn-settings-auto-backup">Copia automática</button>
       </div>
 
       <div class="card">
@@ -179,17 +178,6 @@
       <p id="delete-db-msg" class="text-muted mt-1 mb-0" style="display:none;"></p>
       <div class="modal__actions" style="margin-top: 1rem;">
         <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-delete-db">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Copia automática -->
-  <div id="settings-modal-auto-backup" class="overlay" style="display: none; align-items: center; justify-content: center;">
-    <div class="modal" style="max-width: 28rem;">
-      <h2 class="modal__title">Copia de Seguridad automática</h2>
-      <p class="text-muted" style="margin: 0 0 1rem;">Todos los días a las <strong>23:59</strong> (hora Venezuela) se guarda una copia en la carpeta <strong>backups/</strong>. Se mantienen como máximo <strong>7 copias</strong>; las más antiguas se eliminan.</p>
-      <div class="modal__actions" style="margin-top: 1rem;">
-        <button type="button" class="btn btn--ghost" data-settings-close="settings-modal-auto-backup">Cerrar</button>
       </div>
     </div>
   </div>

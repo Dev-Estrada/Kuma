@@ -89,7 +89,6 @@ document.getElementById('btn-settings-backup')?.addEventListener('click', () => 
 document.getElementById('btn-settings-restore')?.addEventListener('click', () => openSettingsModal('settings-modal-restore'));
 document.getElementById('btn-settings-demo')?.addEventListener('click', () => openSettingsModal('settings-modal-demo'));
 document.getElementById('btn-settings-delete-db')?.addEventListener('click', () => openSettingsModal('settings-modal-delete-db'));
-document.getElementById('btn-settings-auto-backup')?.addEventListener('click', () => openSettingsModal('settings-modal-auto-backup'));
 
 document.querySelectorAll('[data-settings-close]').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -98,7 +97,7 @@ document.querySelectorAll('[data-settings-close]').forEach((btn) => {
   });
 });
 
-['settings-modal-appearance', 'settings-modal-rate', 'settings-modal-backup', 'settings-modal-restore', 'settings-modal-demo', 'settings-modal-delete-db', 'settings-modal-auto-backup'].forEach((modalId) => {
+['settings-modal-appearance', 'settings-modal-rate', 'settings-modal-backup', 'settings-modal-restore', 'settings-modal-demo', 'settings-modal-delete-db'].forEach((modalId) => {
   document.getElementById(modalId)?.addEventListener('click', (e) => {
     if (e.target && (e.target as HTMLElement).id === modalId) closeSettingsModal(modalId);
   });
@@ -431,8 +430,11 @@ if (btnDeleteDb && deleteDbMsg) {
       const res = await fetch(`${API}/api/backup/delete-database`, { method: 'POST' });
       const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string; message?: string };
       if (res.ok && data.ok) {
-        const msg = data.message || 'Base de datos eliminada. Recargue la página; se creará una base de datos nueva. Si desea restaurar datos, use "Restaurar desde copia".';
-        try { sessionStorage.setItem('kuma_redirect_message', msg); } catch (_) {}
+        try {
+          localStorage.removeItem('kuma_token');
+          localStorage.removeItem('kuma_user');
+          sessionStorage.setItem('kuma_redirect_message', data.message || 'Base de datos eliminada. Inicie sesión con admin / Admin123!');
+        } catch (_) {}
         window.location.replace('/login.html');
       } else {
         deleteDbMsg.textContent = data.error || 'Error al eliminar.';

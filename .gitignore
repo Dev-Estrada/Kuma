@@ -4,3 +4,4 @@ inventory.db
 inventory.db.bak
 inventory.db.restore
 backups/
+release/

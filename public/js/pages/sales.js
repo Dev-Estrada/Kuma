@@ -29,14 +29,17 @@ function renderProductGrid(list, resetPage = true) {
     const paginationEl = document.getElementById('product-grid-pagination');
     const withStock = (list || []).filter((p) => (p.quantity ?? 0) > 0);
     currentProductList = withStock;
-    if (resetPage) productGridPage = 1;
+    if (resetPage)
+        productGridPage = 1;
     if (withStock.length === 0) {
         grid.innerHTML = '<div class="product-grid__empty">No hay Productos con stock disponible. Revisa el inventario.</div>';
-        if (paginationEl) paginationEl.innerHTML = '';
+        if (paginationEl)
+            paginationEl.innerHTML = '';
         return;
     }
     const totalPages = Math.max(1, Math.ceil(withStock.length / PRODUCT_GRID_PAGE_SIZE));
-    if (productGridPage > totalPages) productGridPage = totalPages;
+    if (productGridPage > totalPages)
+        productGridPage = totalPages;
     const start = (productGridPage - 1) * PRODUCT_GRID_PAGE_SIZE;
     const pageItems = withStock.slice(start, start + PRODUCT_GRID_PAGE_SIZE);
     grid.innerHTML = pageItems
@@ -47,15 +50,17 @@ function renderProductGrid(list, resetPage = true) {
         </div>`)
         .join('');
     if (withStock.length > PRODUCT_GRID_PAGE_SIZE && paginationEl) {
-        paginationEl.innerHTML = '<span class="pos-products__pagination-range">' + (start + 1) + '-' + (start + pageItems.length) + ' de ' + withStock.length + '</span>' +
-            '<div class="pos-products__pagination-nav">' +
-            '<button type="button" class="btn btn--ghost btn--sm product-grid-prev" ' + (productGridPage <= 1 ? ' disabled' : '') + '>Anterior</button>' +
-            '<span>Pág. ' + productGridPage + ' / ' + totalPages + '</span>' +
-            '<button type="button" class="btn btn--ghost btn--sm product-grid-next" ' + (productGridPage >= totalPages ? ' disabled' : '') + '>Siguiente</button>' +
-            '</div>';
+        paginationEl.innerHTML =
+            '<span class="pos-products__pagination-range">' + (start + 1) + '-' + (start + pageItems.length) + ' de ' + withStock.length + '</span>' +
+                '<div class="pos-products__pagination-nav">' +
+                '<button type="button" class="btn btn--ghost btn--sm product-grid-prev" ' + (productGridPage <= 1 ? ' disabled' : '') + '>Anterior</button>' +
+                '<span>Pág. ' + productGridPage + ' / ' + totalPages + '</span>' +
+                '<button type="button" class="btn btn--ghost btn--sm product-grid-next" ' + (productGridPage >= totalPages ? ' disabled' : '') + '>Siguiente</button>' +
+                '</div>';
         paginationEl.querySelector('.product-grid-prev')?.addEventListener('click', () => { productGridPage = Math.max(1, productGridPage - 1); renderProductGrid(currentProductList, false); });
         paginationEl.querySelector('.product-grid-next')?.addEventListener('click', () => { productGridPage = Math.min(totalPages, productGridPage + 1); renderProductGrid(currentProductList, false); });
-    } else if (paginationEl) {
+    }
+    else if (paginationEl) {
         paginationEl.innerHTML = '';
     }
 }
@@ -216,74 +221,80 @@ function openPaymentModal() {
     const paymentSummary = document.getElementById('payment-summary');
     const addBtn = document.getElementById('payment-add-btn');
     const submitBtn = document.getElementById('pos-payment-submit');
-
     let paymentEntries = [];
-
-    if (bankSearchInput) bankSearchInput.value = '';
-    if (bankSelect) bankSelect.value = '';
+    if (bankSearchInput)
+        bankSearchInput.value = '';
+    if (bankSelect)
+        bankSelect.value = '';
     methodSelect.value = 'pago_movil';
     amountInput.value = '';
     refInput.value = '';
     bankRef.style.display = 'none';
     const bankResultsEl = document.getElementById('payment-bank-results');
-    if (bankResultsEl) bankResultsEl.style.display = 'none';
-
+    if (bankResultsEl)
+        bankResultsEl.style.display = 'none';
     function updateAmountLabelAndEquivalent() {
         const method = methodSelect.value;
         const isUsd = method === 'efectivo_usd';
-        if (amountLabel) amountLabel.textContent = isUsd ? 'Monto (USD) *' : 'Monto (Bs) *';
+        if (amountLabel)
+            amountLabel.textContent = isUsd ? 'Monto (USD) *' : 'Monto (Bs) *';
         if (amountEquivalent) {
             amountEquivalent.style.display = isUsd ? 'none' : 'block';
             const val = parseFloat(amountInput.value || '0') || 0;
             if (!isUsd && exchangeRate > 0 && val > 0) {
                 const equiv = Math.round((val / exchangeRate) * 100) / 100;
                 amountEquivalent.textContent = 'Equiv. USD: $' + equiv.toFixed(2);
-            } else {
+            }
+            else {
                 amountEquivalent.textContent = '';
             }
         }
     }
-
     function updateAddFormVisibility() {
         const method = methodSelect.value;
         const show = METHODS_WITH_BANK_REF.indexOf(method) >= 0;
         bankRef.style.display = show ? 'block' : 'none';
-        if (!show && bankResultsEl) bankResultsEl.style.display = 'none';
+        if (!show && bankResultsEl)
+            bankResultsEl.style.display = 'none';
         updateAmountLabelAndEquivalent();
     }
-
     function renderPaymentList() {
         const totalPaid = paymentEntries.reduce((s, p) => s + p.amountUsd, 0);
-        paymentList.innerHTML = paymentEntries.map((p, i) => {
+        paymentList.innerHTML = paymentEntries
+            .map((p, i) => {
             const label = PAYMENT_METHOD_LABELS[p.method] || p.method;
             let extra = '';
             if (p.bankCode) {
                 const bank = BANKS.find((b) => b.code === p.bankCode);
                 extra += bank ? ` · ${bank.name}` : '';
             }
-            if (p.reference) extra += ` · Ref: ${String(p.reference).replace(/</g, '&lt;')}`;
+            if (p.reference)
+                extra += ` · Ref: ${String(p.reference).replace(/</g, '&lt;')}`;
             const amountBs = Math.round((p.amountUsd * exchangeRate) * 100) / 100;
             const amountLine = `$${Number(p.amountUsd).toFixed(2)} USD (Bs ${amountBs.toFixed(2)})${extra ? ` · ${extra}` : ''}`;
             return `<li class="payment-list-item">
-              <div class="payment-list-item__row">
-                <span class="payment-list-item__label">${label}</span>
-                <button type="button" class="btn btn--ghost btn--sm payment-remove-btn" data-index="${i}" aria-label="Quitar">Quitar</button>
-              </div>
-              <span class="payment-list-item__amount">${amountLine}</span>
-            </li>`;
-        }).join('');
+          <div class="payment-list-item__row">
+            <span class="payment-list-item__label">${label}</span>
+            <button type="button" class="btn btn--ghost btn--sm payment-remove-btn" data-index="${i}" aria-label="Quitar">Quitar</button>
+          </div>
+          <span class="payment-list-item__amount">${amountLine}</span>
+        </li>`;
+        })
+            .join('');
         paymentListEmpty.style.display = paymentEntries.length > 0 ? 'none' : 'block';
         const paidRounded = Math.round(totalPaid * 100) / 100;
         const ok = paidRounded >= totalUsd;
         if (paymentEntries.length === 0) {
             paymentSummary.textContent = 'Agrega al menos un pago. La suma debe ser mayor o igual al total.';
             paymentSummary.style.color = '';
-        } else if (!ok) {
-                        const missingUsd = totalUsd - paidRounded;
+        }
+        else if (!ok) {
+            const missingUsd = totalUsd - paidRounded;
             const missingBs = totalUsd > 0 ? Math.round((missingUsd * totalBs / totalUsd) * 100) / 100 : 0;
             paymentSummary.textContent = `Total pagado: $${paidRounded.toFixed(2)} USD. Falta $${missingUsd.toFixed(2)} USD (Bs ${missingBs.toFixed(2)}) para completar la venta.`;
             paymentSummary.style.color = 'var(--danger, #c00)';
-        } else {
+        }
+        else {
             const paidBs = totalUsd > 0 ? Math.round((paidRounded * totalBs / totalUsd) * 100) / 100 : 0;
             let msg = `Total pagado: $${paidRounded.toFixed(2)} USD (Bs ${paidBs.toFixed(2)}).`;
             if (paidRounded > totalUsd) {
@@ -303,15 +314,13 @@ function openPaymentModal() {
             });
         });
     }
-
-    (document.getElementById('payment-total-usd-display')).textContent = totalUsd.toFixed(2);
-    (document.getElementById('payment-total-bs-display')).textContent = totalBs.toFixed(2);
+    document.getElementById('payment-total-usd-display').textContent = totalUsd.toFixed(2);
+    document.getElementById('payment-total-bs-display').textContent = totalBs.toFixed(2);
     paymentEntries = [];
     renderPaymentList();
     updateAddFormVisibility();
     methodSelect.addEventListener('change', updateAddFormVisibility);
-    if (amountInput) amountInput.addEventListener('input', updateAmountLabelAndEquivalent);
-
+    amountInput.addEventListener('input', updateAmountLabelAndEquivalent);
     addBtn.onclick = () => {
         const method = methodSelect.value;
         const amount = parseFloat(amountInput.value || '0') || 0;
@@ -327,26 +336,20 @@ function openPaymentModal() {
                 showMsg('Indica la referencia de la transacción.', true);
                 return;
             }
-            const bank = bankSelect.value?.trim();
-            paymentEntries.push({
-                method,
-                amountUsd,
-                bankCode: bank || null,
-                reference: ref,
-                mon: null,
-            });
-        } else {
+            const bank = (bankSelect && bankSelect.value) ? bankSelect.value.trim() || null : null;
+            paymentEntries.push({ method, amountUsd, bankCode: bank, reference: ref, mon: null });
+        }
+        else {
             paymentEntries.push({ method, amountUsd, bankCode: null, reference: null, mon: null });
         }
         amountInput.value = '';
-        if (amountEquivalent) amountEquivalent.textContent = '';
+        if (amountEquivalent)
+            amountEquivalent.textContent = '';
         refInput.value = '';
         renderPaymentList();
     };
-
     modal.style.display = 'flex';
     document.getElementById('pos-payment-cancel').onclick = () => { modal.style.display = 'none'; };
-
     submitBtn.onclick = async () => {
         const totalPaid = paymentEntries.reduce((s, p) => s + p.amountUsd, 0);
         if (Math.round(totalPaid * 100) / 100 < totalUsd) {
@@ -358,23 +361,14 @@ function openPaymentModal() {
         const body = {
             items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
             discountPercent,
-            payments: paymentEntries.map((p) => ({
-                method: p.method,
-                amountUsd: p.amountUsd,
-                bankCode: p.bankCode || null,
-                reference: p.reference || null,
-                mon: null,
-            })),
+            payments: paymentEntries.map((p) => ({ method: p.method, amountUsd: p.amountUsd, bankCode: p.bankCode || null, reference: p.reference || null, mon: null })),
         };
-        if (clientId != null && !isNaN(clientId)) body.clientId = clientId;
+        if (clientId != null && !isNaN(clientId))
+            body.clientId = clientId;
         submitBtn.disabled = true;
         try {
-            const res = await fetch(`${API}/api/sales`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            const data = await res.json().catch(() => ({}));
+            const res = await fetch(`${API}/api/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const data = (await res.json().catch(() => ({})));
             if (!res.ok) {
                 showMsg(data.error || 'Error al registrar la venta', true);
                 return;
@@ -383,9 +377,11 @@ function openPaymentModal() {
             modal.style.display = 'none';
             clearCart();
             loadProducts();
-        } catch (err) {
+        }
+        catch (err) {
             showMsg('Sin conexión. Revisa la red y vuelve a intentar.', true);
-        } finally {
+        }
+        finally {
             submitBtn.disabled = false;
         }
     };
@@ -608,42 +604,45 @@ async function loadLowStockBanner() {
 loadRate();
 loadProducts();
 loadLowStockBanner();
-
 (function () {
     const searchInput = document.getElementById('payment-bank-search');
     const resultsEl = document.getElementById('payment-bank-results');
     const hiddenBank = document.getElementById('payment-bank');
-    if (!searchInput || !resultsEl || !hiddenBank) return;
+    if (!searchInput || !resultsEl || !hiddenBank)
+        return;
     searchInput.addEventListener('input', function () {
         const q = (this.value || '').trim().toLowerCase();
-        const list = q ? BANKS.filter(function (b) { return b.code.toLowerCase().includes(q) || b.name.toLowerCase().includes(q); }) : BANKS;
+        const list = q ? BANKS.filter((b) => b.code.toLowerCase().includes(q) || b.name.toLowerCase().includes(q)) : BANKS;
         if (list.length === 0) {
             resultsEl.innerHTML = '<div class="payment-bank-results__item" style="pointer-events:none; color: var(--text-muted);">Sin resultados</div>';
-        } else {
-            resultsEl.innerHTML = list.map(function (b) {
-                return '<button type="button" class="payment-bank-results__item" data-code="' + b.code + '" data-name="' + (b.name || '').replace(/"/g, '&quot;') + '"><span class="payment-bank-results__code">' + b.code + '</span>' + (b.name || '') + '</button>';
-            }).join('');
+        }
+        else {
+            resultsEl.innerHTML = list
+                .map((b) => `<button type="button" class="payment-bank-results__item" data-code="${b.code}" data-name="${(b.name || '').replace(/"/g, '&quot;')}"><span class="payment-bank-results__code">${b.code}</span>${b.name || ''}</button>`)
+                .join('');
         }
         resultsEl.style.display = 'block';
     });
     searchInput.addEventListener('focus', function () {
-        if (this.value.trim()) return;
+        if (this.value.trim())
+            return;
         const list = BANKS;
-        resultsEl.innerHTML = list.map(function (b) {
-            return '<button type="button" class="payment-bank-results__item" data-code="' + b.code + '" data-name="' + (b.name || '').replace(/"/g, '&quot;') + '"><span class="payment-bank-results__code">' + b.code + '</span>' + (b.name || '') + '</button>';
-        }).join('');
+        resultsEl.innerHTML = list
+            .map((b) => `<button type="button" class="payment-bank-results__item" data-code="${b.code}" data-name="${(b.name || '').replace(/"/g, '&quot;')}"><span class="payment-bank-results__code">${b.code}</span>${b.name || ''}</button>`)
+            .join('');
         resultsEl.style.display = list.length ? 'block' : 'none';
     });
-    resultsEl.addEventListener('click', function (e) {
+    resultsEl.addEventListener('click', (e) => {
         const item = e.target.closest('.payment-bank-results__item');
-        if (!item || item.getAttribute('data-code') == null) return;
+        if (!item || !item.getAttribute('data-code'))
+            return;
         const code = item.getAttribute('data-code');
         const name = item.getAttribute('data-name') || '';
         hiddenBank.value = code;
         searchInput.value = name;
         resultsEl.style.display = 'none';
     });
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', (e) => {
         if (resultsEl.style.display !== 'none' && e.target !== searchInput && e.target !== resultsEl && !resultsEl.contains(e.target))
             resultsEl.style.display = 'none';
     });

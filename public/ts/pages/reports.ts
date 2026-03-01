@@ -102,9 +102,32 @@ function closeReportModal(modalId: string) {
   if (modal) modal.style.display = 'none';
 }
 
+async function createBackup(): Promise<void> {
+  const showAlert = (window as any).showAlert;
+  try {
+    const res = await fetch(`${API}/api/backup/save`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (typeof showAlert === 'function') showAlert({ title: 'Error', message: data.error || (res.status === 403 ? 'Solo administradores pueden crear copias de seguridad.' : 'No se pudo crear la copia.'), type: 'error' });
+      return;
+    }
+    if (data.ok && data.filename) {
+      const where = (data as { fullPath?: string }).fullPath ? `\n\nUbicación:\n${(data as { fullPath: string }).fullPath}` : '';
+      if (typeof showAlert === 'function') showAlert({ title: 'Copia creada', message: `Se guardó la copia de seguridad: ${data.filename}${where}`, type: 'success' });
+    } else {
+      if (typeof showAlert === 'function') showAlert({ title: 'Listo', message: 'Copia de seguridad creada correctamente.', type: 'success' });
+    }
+  } catch (e) {
+    if (typeof showAlert === 'function') showAlert({ title: 'Error', message: 'Error de conexión al crear la copia de seguridad.', type: 'error' });
+  }
+}
+
 document.getElementById('btn-report-day')?.addEventListener('click', () => {
   openReportModal('report-modal-day', () => loadDaySummary());
 });
+
+document.getElementById('btn-report-backup')?.addEventListener('click', () => createBackup());
+document.getElementById('btn-report-backup-in-modal')?.addEventListener('click', () => createBackup());
 
 document.getElementById('btn-report-period')?.addEventListener('click', () => {
   const fromInput = document.getElementById('report-from') as HTMLInputElement;

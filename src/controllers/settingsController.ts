@@ -1,24 +1,33 @@
 import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import { getDataDir } from '../dataDir';
 import { SettingsService } from '../services/settingsService';
 
 const service = new SettingsService();
 
-const BRANDING_DIR = path.join(__dirname, '../../public/assets/branding');
 const BRANDING_BASENAME = 'custom-logo';
 
+function getBrandingDir(): string {
+  if (process.env.KUMA_DATA_DIR) {
+    return path.join(getDataDir(), 'branding');
+  }
+  return path.join(__dirname, '../../public/assets/branding');
+}
+
 function ensureBrandingDir() {
-  if (!fs.existsSync(BRANDING_DIR)) {
-    fs.mkdirSync(BRANDING_DIR, { recursive: true });
+  const dir = getBrandingDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
 function getCurrentBrandingFile(): string | null {
-  if (!fs.existsSync(BRANDING_DIR)) return null;
-  const files = fs.readdirSync(BRANDING_DIR);
+  const dir = getBrandingDir();
+  if (!fs.existsSync(dir)) return null;
+  const files = fs.readdirSync(dir);
   const found = files.find((f) => f.startsWith(BRANDING_BASENAME));
-  return found ? path.join(BRANDING_DIR, found) : null;
+  return found ? path.join(dir, found) : null;
 }
 
 function deleteBrandingFile() {
@@ -98,7 +107,7 @@ export class SettingsController {
     ensureBrandingDir();
     deleteBrandingFile();
     const newName = BRANDING_BASENAME + safeExt;
-    const dest = path.join(BRANDING_DIR, newName);
+    const dest = path.join(getBrandingDir(), newName);
     try {
       fs.writeFileSync(dest, file.buffer);
     } catch (e) {

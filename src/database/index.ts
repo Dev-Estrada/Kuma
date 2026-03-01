@@ -2,6 +2,7 @@ import sqlite3 from 'sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { open, Database } from 'sqlite';
+import { getDataDir } from '../dataDir';
 import { getVenezuelaNow } from '../utils/venezuelaTime';
 import { hashPassword } from '../utils/auth';
 
@@ -12,7 +13,7 @@ let db: Database<sqlite3.Database, sqlite3.Statement> | null = null;
 
 export async function getDb(): Promise<Database<sqlite3.Database, sqlite3.Statement>> {
   if (!db) {
-    const cwd = process.cwd();
+    const cwd = getDataDir();
     const restorePath = path.resolve(cwd, DB_RESTORE.replace(/^\.\//, ''));
     const dbPath = path.resolve(cwd, DB_FILENAME.replace(/^\.\//, ''));
     if (fs.existsSync(restorePath)) {
@@ -309,7 +310,7 @@ export async function closeDb(): Promise<void> {
 /** Cierra la conexión y elimina el archivo inventory.db. La siguiente llamada a getDb() creará una base de datos nueva. */
 export async function deleteCurrentDatabase(): Promise<void> {
   await closeDb();
-  const cwd = process.cwd();
+  const cwd = getDataDir();
   const dbPath = path.resolve(cwd, DB_FILENAME.replace(/^\.\//, ''));
   try {
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
@@ -324,7 +325,7 @@ export async function deleteCurrentDatabase(): Promise<void> {
  */
 export async function applyRestoreNow(): Promise<void> {
   await closeDb();
-  const cwd = process.cwd();
+  const cwd = getDataDir();
   const restorePath = path.resolve(cwd, DB_RESTORE.replace(/^\.\//, ''));
   const dbPath = path.resolve(cwd, DB_FILENAME.replace(/^\.\//, ''));
   if (fs.existsSync(restorePath)) {
